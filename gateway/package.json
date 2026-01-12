@@ -1,0 +1,53 @@
+{
+  "name": "mcp-gateway",
+  "version": "0.1.0",
+  "description": "MCP Streamable HTTP gateway with auth, policy, rate limiting and routing.",
+  "type": "module",
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
+  "author": "Isra San Jose",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/TU_ORG/mcp-gateway.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TU_ORG/mcp-gateway/issues"
+  },
+  "homepage": "https://github.com/TU_ORG/mcp-gateway#readme",
+  "keywords": [
+    "mcp",
+    "gateway",
+    "json-rpc",
+    "proxy",
+    "sse",
+    "fastify"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "mcp-gateway": "./src/cli.js"
+  },
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "dev": "node src/cli.js run -c config.example.yml",
+    "validate": "node src/cli.js validate -c config.example.yml",
+    "routes": "node src/cli.js routes -c config.example.yml",
+    "health": "node src/cli.js health",
+    "prepack": "npm run validate"
+  },
+  "dependencies": {
+    "commander": "14.0.2",
+    "fastify": "5.6.2",
+    "minimatch": "10.1.1",
+    "yaml": "2.8.2",
+    "zod": "4.3.5"
+  }
+}

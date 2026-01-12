@@ -1,0 +1,10 @@
+{
+    "name": "mc-gateway-repo",
+    "private": true,
+    "workspaces": ["gateway"],
+    "scripts": {
+        "dev": "npm -w gateway run dev",
+        "validate": "npm -w gateway run validate",
+        "routes": "npm -w gateway run routes"
+    }
+}

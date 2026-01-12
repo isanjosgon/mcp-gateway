@@ -1,0 +1,22 @@
+services:
+  mcp-dummy:
+    build:
+      context: ./mcp-dummy
+      dockerfile: Dockerfile
+    container_name: mcp-dummy
+    expose:
+      - "9000"
+
+  mcp-gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    container_name: mcp-gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./gateway/config.example.yml:/config/config.yml:ro
+    environment:
+      - NODE_ENV=development
+    depends_on:
+      - mcp-dummy

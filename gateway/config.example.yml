@@ -1,0 +1,57 @@
+server:
+  host: 0.0.0.0
+  port: 8080
+  path: /mcp
+  allowedOrigins:
+    - "http://localhost:3000"
+    - "https://app.your-domain.com"
+
+auth:
+  mode: apiKey
+  apiKeys:
+    - key: "dev_key_1"
+      tenant: "client"
+      client: "local-dev"
+
+rateLimit:
+  defaultRpm: 600
+  byMethod:
+    "tools/call": 120
+
+policy:
+  default: deny
+  rules:
+    - subject:
+        tenant: "client"
+        client: "local-dev"
+      allow:
+        methods:
+          - "initialize"
+          - "tools/list"
+          - "tools/call"
+          - "resources/list"
+          - "resources/read"
+          - "prompts/list"
+          - "prompts/get"
+        tools: ["*"]
+        resources: ["*"]
+        prompts: ["*"]
+
+upstreams:
+  - name: mcp-local
+    type: http
+    url: "http://mcp-dummy:9000/mcp"
+    timeoutMs: 30000
+
+routing:
+  - match: { method: "*" }
+    upstream: "mcp-local"
+
+logging:
+  level: "info"
+  redactKeys:
+    - "authorization"
+    - "token"
+    - "access_token"
+    - "password"
+    - "secret"
