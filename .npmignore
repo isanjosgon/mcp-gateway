@@ -1,0 +1,12 @@
+# Ignore files and directories for npm package
+config.example.yml
+Dockerfile
+
+# Ignore log
+logs
+*.log
+npm-debug.log*
+
+# Ignorre OS files
+.DS_Store
+.env
