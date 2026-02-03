@@ -1,5 +1,5 @@
 {
-  "name": "mcp-gateway",
+  "name": "@israsanjose/mcp-gateway",
   "version": "0.1.0",
   "description": "MCP Streamable HTTP gateway with auth, policy, rate limiting and routing.",
   "type": "module",
