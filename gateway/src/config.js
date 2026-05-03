@@ -36,6 +36,7 @@ const ConfigSchema = z.object({
         })).default([])
     }),
     rateLimit: z.object({
+        keyPrefix: z.string().min(1).default("mcp-gateway"),
         defaultRpm: z.number().int().positive().default(600),
         byMethod: z.record(z.string(), z.number().int().positive()).default({})
     }),

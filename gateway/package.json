@@ -38,6 +38,7 @@
   ],
   "scripts": {
     "dev": "node src/cli.js run -c config.example.yml",
+    "test": "node --test",
     "validate": "node src/cli.js validate -c config.example.yml",
     "routes": "node src/cli.js routes -c config.example.yml",
     "health": "node src/cli.js health",
@@ -47,6 +48,7 @@
     "commander": "14.0.2",
     "fastify": "5.6.2",
     "minimatch": "10.1.1",
+    "redis": "5.8.2",
     "yaml": "2.8.2",
     "zod": "4.3.5"
   }
