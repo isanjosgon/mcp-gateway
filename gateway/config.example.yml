@@ -61,6 +61,8 @@ logging:
   level: "info"
   redactKeys:
     - "authorization"
+    - "x-api-key"
+    - "api-key"
     - "token"
     - "access_token"
     - "password"

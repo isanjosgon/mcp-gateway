@@ -9,11 +9,47 @@ import { audit, isAuditEnabled } from "./middlewares/audit.js";
 import { proxyUpstream } from "./proxy.js";
 import { createRateLimitStore } from "./ratelimit/store.js";
 
+const pathForKey = (prefix, key) => {
+    return /^[A-Za-z_$][\w$]*$/.test(key)
+        ? `${prefix}.${key}`
+        : `${prefix}["${key.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"")}"]`;
+};
+
+const redactPaths = (keys = []) => {
+    const paths = new Set();
+
+    for (const rawKey of keys) {
+        const key = rawKey.trim();
+        if (!key) continue;
+
+        paths.add(key);
+        for (const prefix of ["headers", "req.headers", "request.headers", "res.headers", "reply.headers"]) {
+            paths.add(pathForKey(prefix, key));
+        }
+    }
+
+    return [...paths];
+};
+
+export const buildLoggerOptions = (logging = {}) => {
+    const options = { level: logging.level ?? "info" };
+    const paths = redactPaths(logging.redactKeys);
+
+    if (paths.length > 0) {
+        options.redact = {
+            paths,
+            censor: "[REDACTED]"
+        };
+    }
+
+    return options;
+};
+
 
 export async function startServer(config) 
 {
     const app = Fastify({
-        logger: { level: config.logging.level },
+        logger: buildLoggerOptions(config.logging),
         bodyLimit: 2 * 1024 * 1024 // 2MB
     });
     const rateLimitStore = await createRateLimitStore({ logger: app.log });

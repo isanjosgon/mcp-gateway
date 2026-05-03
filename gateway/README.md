@@ -123,6 +123,8 @@ logging:
   level: "info"
   redactKeys:
     - "authorization"
+    - "x-api-key"
+    - "api-key"
     - "token"
     - "access_token"
     - "password"
@@ -172,6 +174,19 @@ Redis keys use this shape:
 Use a distinct `rateLimit.keyPrefix` per product, deployment, or environment,
 for example `mcp-gateway:prod`. `RATE_LIMIT_KEY_PREFIX` overrides the config
 value at runtime.
+
+Runtime environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `REDIS_URL` | Enables Redis-backed rate limiting, for example `redis://localhost:6379`. |
+| `RATE_LIMIT_KEY_PREFIX` | Overrides `rateLimit.keyPrefix` to separate products or environments sharing Redis. |
+| `MCP_GATEWAY_ENV` | Primary environment name used by audit filtering. |
+| `NODE_ENV` | Fallback environment name when `MCP_GATEWAY_ENV` is not set. |
+
+Gateway credentials are used only at the gateway boundary. `Authorization`,
+`X-API-Key`, and `Api-Key` request headers are not forwarded to upstream MCP
+servers.
 
 ---
 
@@ -267,7 +282,6 @@ routing:
 ```bash
 mcp-gateway run -c config.yml
 mcp-gateway validate -c config.yml
-mcp-gateway print-config -c config.yml
 mcp-gateway routes -c config.yml
 mcp-gateway health
 ```
@@ -286,10 +300,14 @@ docker compose exec mcp-gateway node src/cli.js validate -c /config/config.yml
 
 A common pattern is to **not publish** upstream ports to the host. Only the gateway is exposed:
 
+- Redis service: no `ports:` (only internal networking)
 - Upstream service: no `ports:` (only internal networking)
 - Gateway service: `ports: ["8080:8080"]`
 
-This keeps the MCP upstream reachable only from the gateway on the Docker network.
+This keeps Redis and the MCP upstream reachable only from the gateway on the
+Docker network. The included `docker-compose.yml` sets
+`REDIS_URL=redis://redis:6379` so rate limits are shared across gateway
+instances that use the same Redis and key prefix.
 
 ---
 

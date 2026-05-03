@@ -8,12 +8,12 @@
   "author": "Isra San Jose",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/TU_ORG/mcp-gateway.git"
+    "url": "git+https://github.com/isanjosgon/mcp-gateway.git"
   },
   "bugs": {
-    "url": "https://github.com/TU_ORG/mcp-gateway/issues"
+    "url": "https://github.com/isanjosgon/mcp-gateway/issues"
   },
-  "homepage": "https://github.com/TU_ORG/mcp-gateway#readme",
+  "homepage": "https://github.com/isanjosgon/mcp-gateway#readme",
   "keywords": [
     "mcp",
     "gateway",
@@ -46,10 +46,10 @@
   },
   "dependencies": {
     "commander": "14.0.2",
-    "fastify": "5.6.2",
-    "minimatch": "10.1.1",
+    "fastify": "5.8.5",
+    "minimatch": "10.2.5",
     "redis": "5.8.2",
-    "yaml": "2.8.2",
+    "yaml": "2.8.4",
     "zod": "4.3.5"
   }
 }

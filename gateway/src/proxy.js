@@ -15,12 +15,19 @@ const hopByHop = new Set([
     "content-encoding"
 ]);
 
-const copyHeadersToUpstream = (req) => {
+const gatewayOnlyHeaders = new Set([
+    "authorization",
+    "x-api-key",
+    "api-key"
+]);
+
+export const copyHeadersToUpstream = (req) => {
     const headers = {};
     for (const [k, v] of Object.entries(req.headers)) {
         if (!v) continue;
         const key = k.toLowerCase();
         if (hopByHop.has(key)) continue;
+        if (gatewayOnlyHeaders.has(key)) continue;
         headers[key] = Array.isArray(v) ? v.join(", ") : String(v);
     }
     return headers;
