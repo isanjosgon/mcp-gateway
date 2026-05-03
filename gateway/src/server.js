@@ -7,6 +7,7 @@ import { authzPolicy } from "./middlewares/policy.js";
 import { rateLimit } from "./middlewares/ratelimit.js";
 import { audit } from "./middlewares/audit.js";
 import { proxyUpstream } from "./proxy.js";
+import { createRateLimitStore } from "./ratelimit/store.js";
 
 
 export async function startServer(config) 
@@ -15,14 +16,16 @@ export async function startServer(config)
         logger: { level: config.logging.level },
         bodyLimit: 2 * 1024 * 1024 // 2MB
     });
+    const rateLimitStore = await createRateLimitStore({ logger: app.log });
 
     // Middleware chain
     app.addHook("onRequest", requestId());
     app.addHook("onRequest", originGuard(config.server.allowedOrigins));
     app.addHook("onRequest", authn(config));
     app.addHook("preHandler", authzPolicy(config));
-    app.addHook("preHandler", rateLimit(config));
+    app.addHook("preHandler", rateLimit(config, { store: rateLimitStore }));
     app.addHook("onResponse", audit(config));
+    app.addHook("onClose", async () => rateLimitStore.close?.());
 
     // MCP Streamable HTTP endpoint: POST/GET/DELETE
     app.post(config.server.path, async (req, reply) => proxyUpstream(config, req, reply));
@@ -30,5 +33,10 @@ export async function startServer(config)
     app.delete(config.server.path, async (req, reply) => proxyUpstream(config, req, reply));
 
     await app.listen({ host: config.server.host, port: config.server.port });
-    app.log.info({ host: config.server.host, port: config.server.port, path: config.server.path }, "mcp-gateway up");
+    app.log.info({
+        host: config.server.host,
+        port: config.server.port,
+        path: config.server.path,
+        rateLimitStore: rateLimitStore.type
+    }, "mcp-gateway up");
 }

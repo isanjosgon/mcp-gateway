@@ -1,12 +1,28 @@
 import { extractJsonRpcCalls } from "../utils/jsonrpc.js";
+import { rpmToLimit } from "../ratelimit/limits.js";
+import { createMemoryRateLimitStore } from "../ratelimit/memory-store.js";
 
-const buckets = new Map();
+const methodRate = (cfg, mcpMethod) => {
+    return mcpMethod && cfg.rateLimit.byMethod[mcpMethod]
+        ? cfg.rateLimit.byMethod[mcpMethod]
+        : cfg.rateLimit.defaultRpm;
+};
 
-const rpmToRps = (rpm) => {
-  return rpm / 60;
-}
+const rateLimitKeyPrefix = (cfg, env) => {
+    return env.RATE_LIMIT_KEY_PREFIX?.trim() || cfg.rateLimit.keyPrefix || "mcp-gateway";
+};
 
-export function rateLimit(cfg) {
+const rateLimitKey = (cfg, env, subject, req, mcpMethod) => {
+    return [
+        rateLimitKeyPrefix(cfg, env),
+        "rate",
+        subject.tenant,
+        subject.client,
+        mcpMethod ?? `http:${req.method}`
+    ].join(":");
+};
+
+export function rateLimit(cfg, { store = createMemoryRateLimitStore(), env = process.env } = {}) {
     return async (req) => {
         const subject = req.subject ?? { tenant: "anonymous", client: "anonymous" };
 
@@ -16,30 +32,14 @@ export function rateLimit(cfg) {
             mcpMethod = calls[0]?.method;
         }
 
-        const rpm = mcpMethod && cfg.rateLimit.byMethod[mcpMethod]
-            ? cfg.rateLimit.byMethod[mcpMethod]
-            : cfg.rateLimit.defaultRpm;
+        const rpm = methodRate(cfg, mcpMethod);
+        const key = rateLimitKey(cfg, env, subject, req, mcpMethod);
+        const result = await store.consume(key, rpmToLimit(rpm));
 
-        const key = `${subject.tenant}:${subject.client}:${mcpMethod ?? "http:" + req.method}`;
-
-        const now = Date.now();
-        const rps = rpmToRps(rpm);
-        const capacity = Math.max(1, Math.floor(rps * 10)); // burst ~10s
-        const refillPerMs = rps / 1000;
-
-        const b = buckets.get(key) ?? { tokens: capacity, lastRefill: now };
-        const elapsed = now - b.lastRefill;
-        b.tokens = Math.min(capacity, b.tokens + elapsed * refillPerMs);
-        b.lastRefill = now;
-
-        if (b.tokens < 1) {
-            buckets.set(key, b);
+        if (!result.allowed) {
             const err = new Error("Rate limit exceeded");
             err.statusCode = 429;
             throw err;
         }
-
-        b.tokens -= 1;
-        buckets.set(key, b);
     };
 }
