@@ -1,4 +1,4 @@
-.PHONY: up down restart logs ps build clean
+.PHONY: up down
 
 up:
 	@docker compose up -d --build

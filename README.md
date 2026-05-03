@@ -25,9 +25,9 @@ Running MCP servers in production usually needs more than “it works”:
   - tool name (`params.name`)
   - resource URI (`params.uri`)
   - prompt name (`params.name`)
-- **API key auth** with `tenant` + `client` identity
+- **API key auth** with `tenant` + `client` identity via `Bearer`, `Api-Key`, or API key headers
 - **Policy engine** (deny-by-default, allow/deny using glob patterns)
-- **Rate limiting** per tenant/client (with per-method overrides)
+- **Rate limiting** per tenant/client (with per-method overrides, in-memory or Redis-backed)
 - **Audit logs** (structured, consistent logging)
 - **SSE passthrough** (`text/event-stream`) when upstream returns it
 - Docker Compose-friendly setup (upstreams can remain unexposed to the host)
@@ -76,6 +76,10 @@ auth:
       client: "local-dev"
 
 rateLimit:
+  # Set REDIS_URL=redis://... to share limits across gateway instances.
+  # Without REDIS_URL, the gateway uses in-memory rate limit buckets.
+  # Override keyPrefix with RATE_LIMIT_KEY_PREFIX to separate environments.
+  keyPrefix: "mcp-gateway"
   defaultRpm: 600
   byMethod:
     "tools/call": 120
@@ -125,6 +129,15 @@ logging:
     - "secret"
 ```
 
+API keys can be sent using any of these request headers:
+
+```http
+Authorization: Bearer dev_key_1
+Authorization: Api-Key dev_key_1
+X-API-Key: dev_key_1
+Api-Key: dev_key_1
+```
+
 ### 2) Run
 
 Global install:
@@ -144,6 +157,21 @@ Audit logs are enabled by default. The active environment is resolved from
 `MCP_GATEWAY_ENV`, then `NODE_ENV`, then `development`. Use
 `audit.environments` to choose where audit events are emitted, for example
 `["production", "staging"]`, or `["*"]` for all environments.
+
+Rate limiting uses in-memory buckets by default. Set `REDIS_URL`, for example
+`REDIS_URL=redis://localhost:6379`, to use Redis-backed buckets shared across
+gateway instances. If `REDIS_URL` is set and Redis cannot be reached, startup
+fails instead of silently falling back to memory.
+
+Redis keys use this shape:
+
+```txt
+<keyPrefix>:rate:<tenant>:<client>:<method>
+```
+
+Use a distinct `rateLimit.keyPrefix` per product, deployment, or environment,
+for example `mcp-gateway:prod`. `RATE_LIMIT_KEY_PREFIX` overrides the config
+value at runtime.
 
 ---
 
