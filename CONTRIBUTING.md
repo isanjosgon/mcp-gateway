@@ -53,3 +53,16 @@ Use clear messages. If you follow Conventional Commits, even better (optional):
 - Include steps to reproduce / validate.
 - Update the README or docs if needed.
 - Be explicit about any breaking changes.
+
+## Releases
+
+Merging to `main` triggers the release workflow:
+
+1. Install dependencies with `npm ci`.
+2. Run `npm test`, `npm run validate`, and `npm run routes`.
+3. Bump `gateway/package.json` and `package-lock.json` with a patch version by default.
+4. Commit `chore: release vX.Y.Z`, create tag `vX.Y.Z`, and push both to `main`.
+5. Publish `@isanjosgon/mcp-gateway` to npm.
+6. Create a GitHub Release with generated notes.
+
+For a `minor` or `major` bump, run the `Release Gateway to NPM` workflow manually from GitHub Actions and choose the desired release type. The workflow requires the `NPM_TOKEN` Actions secret and repository Actions permission to write contents.
