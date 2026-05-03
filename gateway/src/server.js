@@ -5,7 +5,7 @@ import { originGuard } from "./middlewares/origin.js";
 import { authn } from "./middlewares/auth.js";
 import { authzPolicy } from "./middlewares/policy.js";
 import { rateLimit } from "./middlewares/ratelimit.js";
-import { audit } from "./middlewares/audit.js";
+import { audit, isAuditEnabled } from "./middlewares/audit.js";
 import { proxyUpstream } from "./proxy.js";
 
 
@@ -22,7 +22,9 @@ export async function startServer(config)
     app.addHook("onRequest", authn(config));
     app.addHook("preHandler", authzPolicy(config));
     app.addHook("preHandler", rateLimit(config));
-    app.addHook("onResponse", audit(config));
+    if (isAuditEnabled(config)) {
+        app.addHook("onResponse", audit(config));
+    }
 
     // MCP Streamable HTTP endpoint: POST/GET/DELETE
     app.post(config.server.path, async (req, reply) => proxyUpstream(config, req, reply));

@@ -38,6 +38,7 @@
   ],
   "scripts": {
     "dev": "node src/cli.js run -c config.example.yml",
+    "test": "node --test",
     "validate": "node src/cli.js validate -c config.example.yml",
     "routes": "node src/cli.js routes -c config.example.yml",
     "health": "node src/cli.js health",

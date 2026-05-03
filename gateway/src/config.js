@@ -59,6 +59,10 @@ const ConfigSchema = z.object({
     }),
     upstreams: z.array(UpstreamSchema).min(1),
     routing: z.array(RoutingRuleSchema).default([]),
+    audit: z.object({
+        enabled: z.boolean().default(true),
+        environments: z.array(z.string().min(1)).default(["*"])
+    }).default({ enabled: true, environments: ["*"] }),
     logging: z.object({
         level: z.string().default("info"),
         redactKeys: z.array(z.string()).default([])
