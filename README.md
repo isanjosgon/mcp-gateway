@@ -25,7 +25,7 @@ Running MCP servers in production usually needs more than “it works”:
   - tool name (`params.name`)
   - resource URI (`params.uri`)
   - prompt name (`params.name`)
-- **API key auth** with `tenant` + `client` identity
+- **API key auth** with `tenant` + `client` identity via `Bearer`, `Api-Key`, or API key headers
 - **Policy engine** (deny-by-default, allow/deny using glob patterns)
 - **Rate limiting** per tenant/client (with per-method overrides)
 - **Audit logs** (structured, consistent logging)
@@ -117,6 +117,15 @@ logging:
     - "access_token"
     - "password"
     - "secret"
+```
+
+API keys can be sent using any of these request headers:
+
+```http
+Authorization: Bearer dev_key_1
+Authorization: Api-Key dev_key_1
+X-API-Key: dev_key_1
+Api-Key: dev_key_1
 ```
 
 ### 2) Run
