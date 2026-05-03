@@ -68,12 +68,29 @@ const ConfigSchema = z.object({
         level: z.string().default("info"),
         redactKeys: z.array(z.string()).default([])
     }).default({ level: "info", redactKeys: [] })
+}).superRefine((cfg, ctx) => {
+    const upstreamNames = new Set(cfg.upstreams.map((upstream) => upstream.name));
+
+    cfg.routing.forEach((rule, index) => {
+        if (!upstreamNames.has(rule.upstream)) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["routing", index, "upstream"],
+                message: `Unknown upstream: ${rule.upstream}`
+            });
+        }
+    });
 });
 
+
+export function parseConfig(config)
+{
+    return ConfigSchema.parse(config);
+}
 
 export async function loadConfig(path)
 {
     const raw = await fs.readFile(path, "utf8");
     const parsed = YAML.parse(raw);
-    return ConfigSchema.parse(parsed);
+    return parseConfig(parsed);
 }

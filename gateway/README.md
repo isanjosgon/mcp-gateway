@@ -30,6 +30,7 @@ Running MCP servers in production usually needs more than “it works”:
 - **Rate limiting** per tenant/client (with per-method overrides, in-memory or Redis-backed)
 - **Audit logs** (structured, consistent logging)
 - **SSE passthrough** (`text/event-stream`) when upstream returns it
+- HTTP health endpoints (`GET /healthz` and `GET /health`)
 - Docker Compose-friendly setup (upstreams can remain unexposed to the host)
 
 ---
@@ -155,6 +156,10 @@ npx @isanjosgon/mcp-gateway run -c config.yml
 Gateway will listen on:
 - `http://localhost:8080/mcp`
 
+Health endpoints are available without gateway API-key auth:
+- `http://localhost:8080/healthz`
+- `http://localhost:8080/health`
+
 Audit logs are enabled by default. The active environment is resolved from
 `MCP_GATEWAY_ENV`, then `NODE_ENV`, then `development`. Use
 `audit.environments` to choose where audit events are emitted, for example
@@ -241,6 +246,9 @@ Routing is **first-match wins**. A rule can match:
 - `match.resource`: (only for `resources/read`) glob pattern for `params.uri`
 - `match.prompt`: (only for `prompts/get`) glob pattern for `params.name`
 - `upstream`: name of the destination upstream
+
+Config validation fails if a routing rule references an upstream name that is
+not declared in `upstreams`.
 
 Example with 3 upstreams:
 

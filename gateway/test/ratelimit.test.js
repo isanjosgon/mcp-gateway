@@ -75,6 +75,57 @@ test("uses MCP method overrides when building store limits", async () => {
     });
 });
 
+test("applies rate limits to every JSON-RPC batch call", async () => {
+    const calls = [];
+    const limiter = rateLimit(config, {
+        store: {
+            async consume(key, limit) {
+                calls.push({ key, limit });
+                return { allowed: true };
+            }
+        }
+    });
+
+    await limiter({
+        method: "POST",
+        subject,
+        body: [
+            { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "echo" } },
+            { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "add" } }
+        ]
+    });
+
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].key, "mcp-gateway:rate:tenant-a:client-a:tools/call");
+    assert.equal(calls[1].key, "mcp-gateway:rate:tenant-a:client-a:tools/call");
+});
+
+test("rejects a JSON-RPC batch when any call exceeds its rate limit", async () => {
+    const limiter = rateLimit({
+        rateLimit: {
+            keyPrefix: "mcp-gateway",
+            defaultRpm: 6,
+            byMethod: {
+                "tools/call": 6
+            }
+        }
+    }, {
+        store: createMemoryRateLimitStore()
+    });
+
+    await assert.rejects(
+        () => limiter({
+            method: "POST",
+            subject,
+            body: [
+                { jsonrpc: "2.0", id: 1, method: "tools/call", params: { name: "echo" } },
+                { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "add" } }
+            ]
+        }),
+        { message: "Rate limit exceeded", statusCode: 429 }
+    );
+});
+
 test("isolates rate limits by subject", async () => {
     const limiter = rateLimit(config, {
         store: createMemoryRateLimitStore()

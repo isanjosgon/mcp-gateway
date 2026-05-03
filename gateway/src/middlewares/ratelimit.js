@@ -22,24 +22,29 @@ const rateLimitKey = (cfg, env, subject, req, mcpMethod) => {
     ].join(":");
 };
 
+const rateLimitMethods = (req) => {
+    if (req.method !== "POST") return [undefined];
+
+    const calls = extractJsonRpcCalls(req.body);
+    if (calls.length === 0) return [undefined];
+
+    return calls.map((call) => call.method);
+};
+
 export function rateLimit(cfg, { store = createMemoryRateLimitStore(), env = process.env } = {}) {
     return async (req) => {
         const subject = req.subject ?? { tenant: "anonymous", client: "anonymous" };
 
-        let mcpMethod;
-        if (req.method === "POST") {
-            const calls = extractJsonRpcCalls(req.body);
-            mcpMethod = calls[0]?.method;
-        }
+        for (const mcpMethod of rateLimitMethods(req)) {
+            const rpm = methodRate(cfg, mcpMethod);
+            const key = rateLimitKey(cfg, env, subject, req, mcpMethod);
+            const result = await store.consume(key, rpmToLimit(rpm));
 
-        const rpm = methodRate(cfg, mcpMethod);
-        const key = rateLimitKey(cfg, env, subject, req, mcpMethod);
-        const result = await store.consume(key, rpmToLimit(rpm));
-
-        if (!result.allowed) {
-            const err = new Error("Rate limit exceeded");
-            err.statusCode = 429;
-            throw err;
+            if (!result.allowed) {
+                const err = new Error("Rate limit exceeded");
+                err.statusCode = 429;
+                throw err;
+            }
         }
     };
 }

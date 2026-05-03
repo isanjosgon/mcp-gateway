@@ -10,13 +10,17 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - API key authentication via `Bearer`, `Api-Key`, `X-API-Key`, and `Api-Key` headers.
 - Redis-backed rate limiting selected with `REDIS_URL`, with in-memory fallback and configurable key prefixes.
 - Audit logging controls by environment using `audit.enabled`, `audit.environments`, `MCP_GATEWAY_ENV`, and `NODE_ENV`.
+- HTTP health endpoints at `GET /healthz` and `GET /health`.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.
 - Logger redaction is wired to `logging.redactKeys`.
+- Logger redaction covers common request body and error containers for configured sensitive keys.
 
 ### Changed
 - CI now runs tests before config validation.
+- JSON-RPC batch requests consume rate-limit tokens per call instead of only using the first call.
+- Config validation rejects routing rules that reference unknown upstream names.
 
 ## [0.1.0] - 2026-01-11
 ### Added
