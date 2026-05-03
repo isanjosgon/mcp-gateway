@@ -1,5 +1,5 @@
 {
-  "name": "adrisra-mcp-gateway",
+  "name": "@isanjosgon/mcp-gateway",
   "version": "0.1.0",
   "description": "MCP Streamable HTTP gateway with auth, policy, rate limiting and routing.",
   "type": "module",

@@ -44,12 +44,12 @@ Running MCP servers in production usually needs more than “it works”:
 
 ### Global
 ```bash
-npm i -g mcp-gateway
+npm i -g @isanjosgon/mcp-gateway
 ```
 
 ### Project-local
 ```bash
-npm i mcp-gateway
+npm i @isanjosgon/mcp-gateway
 ```
 
 ---
@@ -149,7 +149,7 @@ mcp-gateway run -c config.yml
 
 Local install:
 ```bash
-npx mcp-gateway run -c config.yml
+npx @isanjosgon/mcp-gateway run -c config.yml
 ```
 
 Gateway will listen on:
