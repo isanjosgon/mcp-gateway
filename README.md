@@ -109,6 +109,12 @@ routing:
   - match: { method: "*" }
     upstream: "mcp-local"
 
+audit:
+  enabled: true
+  # Environment is resolved from MCP_GATEWAY_ENV, then NODE_ENV, then "development".
+  # Use ["*"] to log audit events in all environments.
+  environments: ["production", "staging"]
+
 logging:
   level: "info"
   redactKeys:
@@ -133,6 +139,11 @@ npx mcp-gateway run -c config.yml
 
 Gateway will listen on:
 - `http://localhost:8080/mcp`
+
+Audit logs are enabled by default. The active environment is resolved from
+`MCP_GATEWAY_ENV`, then `NODE_ENV`, then `development`. Use
+`audit.environments` to choose where audit events are emitted, for example
+`["production", "staging"]`, or `["*"]` for all environments.
 
 ---
 

@@ -4,6 +4,7 @@
     "workspaces": ["gateway"],
     "scripts": {
         "dev": "npm -w gateway run dev",
+        "test": "npm -w gateway test",
         "validate": "npm -w gateway run validate",
         "routes": "npm -w gateway run routes"
     }
