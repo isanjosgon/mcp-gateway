@@ -41,6 +41,15 @@ export const copyHeadersToUpstream = (req, config = {}) => {
     return headers;
 };
 
+export const applyUpstreamAuth = (headers, upstream = {}) => {
+    if (upstream.auth?.type !== "apiKey") return headers;
+
+    return {
+        ...headers,
+        [upstream.auth.apiKey.header.toLowerCase()]: upstream.auth.apiKey.value
+    };
+};
+
 export async function proxyUpstream(config, req, reply) {
     const calls = req.method === "POST" ? extractJsonRpcCalls(req.body) : [];
     const upstream = selectUpstream(config, req, calls);
@@ -53,11 +62,13 @@ export async function proxyUpstream(config, req, reply) {
 
     try {
         const method = req.method;
-        const headers = copyHeadersToUpstream(req, config);
+        let headers = copyHeadersToUpstream(req, config);
 
         if (method === "POST" && !("content-type" in headers)) {
             headers["content-type"] = "application/json";
         }
+
+        headers = applyUpstreamAuth(headers, upstream);
 
         const body = method === "POST"
             ? (typeof req.body === "string" ? req.body : JSON.stringify(req.body ?? null))

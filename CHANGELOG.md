@@ -12,12 +12,14 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Audit logging controls by environment using `audit.enabled`, `audit.environments`, `MCP_GATEWAY_ENV`, and `NODE_ENV`.
 - HTTP health endpoints at `GET /healthz` and `GET /health`.
 - Configurable upstream request header forwarding with `upstreamHeaders.forward`.
+- Optional per-upstream API key authentication with `${ENV_VAR}` placeholders.
 - Hashed API keys via `keyHash` and audit-safe API key identifiers via `id`.
 - Graceful shutdown for `SIGTERM` and `SIGINT`.
 - JSON-RPC error responses for gateway-level `POST /mcp` failures.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.
+- Upstream credentials are generated from upstream config instead of forwarding client gateway credentials.
 - Logger redaction is wired to `logging.redactKeys`.
 - Logger redaction covers common request body and error containers for configured sensitive keys.
 

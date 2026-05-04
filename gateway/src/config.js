@@ -2,12 +2,28 @@ import fs from "node:fs/promises";
 import YAML from "yaml";
 import { z } from "zod";
 
+const EnvPlaceholder = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
+
+const HttpHeaderNameSchema = z.string()
+    .min(1)
+    .regex(/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/, "header must be a valid HTTP header name");
+
+const UpstreamAuthSchema = z.discriminatedUnion("type", [
+    z.object({
+        type: z.literal("apiKey"),
+        apiKey: z.object({
+            header: HttpHeaderNameSchema,
+            value: z.string().min(1)
+        })
+    })
+]);
 
 const UpstreamSchema = z.object({
     name: z.string(),
     type: z.enum(["http"]).default("http"),
     url: z.string().url(),
-    timeoutMs: z.number().int().positive().optional()
+    timeoutMs: z.number().int().positive().optional(),
+    auth: UpstreamAuthSchema.optional()
 });
 
 const RoutingRuleSchema = z.object({
@@ -101,14 +117,50 @@ const ConfigSchema = z.object({
 });
 
 
-export function parseConfig(config)
+const resolveEnvPlaceholders = (value, env, path) => {
+    return value.replace(EnvPlaceholder, (_match, name) => {
+        const replacement = env[name];
+        if (replacement === undefined || replacement === "") {
+            throw new Error(`Missing environment variable ${name} for ${path}`);
+        }
+
+        return replacement;
+    });
+};
+
+const resolveUpstreamAuth = (upstream, index, env) => {
+    if (upstream.auth?.type !== "apiKey") return upstream;
+
+    return {
+        ...upstream,
+        auth: {
+            ...upstream.auth,
+            apiKey: {
+                ...upstream.auth.apiKey,
+                value: resolveEnvPlaceholders(
+                    upstream.auth.apiKey.value,
+                    env,
+                    `upstreams[${index}].auth.apiKey.value`
+                )
+            }
+        }
+    };
+};
+
+const resolveConfigSecrets = (cfg, env) => ({
+    ...cfg,
+    upstreams: cfg.upstreams.map((upstream, index) => resolveUpstreamAuth(upstream, index, env))
+});
+
+export function parseConfig(config, { env = process.env } = {})
 {
-    return ConfigSchema.parse(config);
+    const cfg = ConfigSchema.parse(config);
+    return resolveConfigSecrets(cfg, env);
 }
 
-export async function loadConfig(path)
+export async function loadConfig(path, { env = process.env } = {})
 {
     const raw = await fs.readFile(path, "utf8");
     const parsed = YAML.parse(raw);
-    return parseConfig(parsed);
+    return parseConfig(parsed, { env });
 }
