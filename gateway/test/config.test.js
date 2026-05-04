@@ -90,7 +90,7 @@ test("resolves upstream API key auth env placeholders", () => {
             {
                 name: "agents-staging",
                 type: "http",
-                url: "https://apidev.smartickia.com/api/v2/mcp",
+                url: "https://mcp-upstream.example.com/api/v2/mcp",
                 auth: {
                     type: "apiKey",
                     apiKey: {
@@ -121,7 +121,7 @@ test("rejects upstream API key auth when an env placeholder is missing", () => {
                 {
                     name: "agents-staging",
                     type: "http",
-                    url: "https://apidev.smartickia.com/api/v2/mcp",
+                    url: "https://mcp-upstream.example.com/api/v2/mcp",
                     auth: {
                         type: "apiKey",
                         apiKey: {
@@ -149,7 +149,7 @@ test("rejects invalid upstream API key header names", () => {
                 {
                     name: "agents-staging",
                     type: "http",
-                    url: "https://apidev.smartickia.com/api/v2/mcp",
+                    url: "https://mcp-upstream.example.com/api/v2/mcp",
                     auth: {
                         type: "apiKey",
                         apiKey: {

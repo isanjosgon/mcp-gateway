@@ -235,7 +235,7 @@ startup; missing or empty variables fail config validation.
 upstreams:
   - name: agents-staging
     type: http
-    url: "https://apidev.smartickia.com/api/v2/mcp"
+    url: "https://mcp-upstream.example.com/api/v2/mcp"
     timeoutMs: 30000
     auth:
       type: apiKey
