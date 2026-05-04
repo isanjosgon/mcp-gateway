@@ -1,6 +1,6 @@
 {
   "name": "@isanjosgon/mcp-gateway",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP Streamable HTTP gateway with auth, policy, rate limiting and routing.",
   "type": "module",
   "license": "MIT",
