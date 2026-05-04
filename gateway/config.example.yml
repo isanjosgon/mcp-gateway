@@ -47,6 +47,16 @@ upstreams:
     url: "http://mcp-dummy:9000/mcp"
     timeoutMs: 30000
 
+upstreamHeaders:
+  # Only these request headers are forwarded to upstream MCP servers.
+  # Gateway credentials such as Authorization, X-API-Key, and Api-Key are never forwarded.
+  forward:
+    - "accept"
+    - "content-type"
+    - "mcp-session-id"
+    - "mcp-protocol-version"
+    - "last-event-id"
+
 routing:
   - match: { method: "*" }
     upstream: "mcp-local"

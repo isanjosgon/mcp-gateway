@@ -11,6 +11,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Redis-backed rate limiting selected with `REDIS_URL`, with in-memory fallback and configurable key prefixes.
 - Audit logging controls by environment using `audit.enabled`, `audit.environments`, `MCP_GATEWAY_ENV`, and `NODE_ENV`.
 - HTTP health endpoints at `GET /healthz` and `GET /health`.
+- Configurable upstream request header forwarding with `upstreamHeaders.forward`.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.

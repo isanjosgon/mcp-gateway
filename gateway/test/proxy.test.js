@@ -3,6 +3,12 @@ import test from "node:test";
 
 import { copyHeadersToUpstream } from "../src/proxy.js";
 
+const config = {
+    upstreamHeaders: {
+        forward: ["accept", "content-type", "mcp-session-id"]
+    }
+};
+
 test("does not forward gateway credentials to upstreams", () => {
     const headers = copyHeadersToUpstream({
         headers: {
@@ -12,7 +18,7 @@ test("does not forward gateway credentials to upstreams", () => {
             accept: "application/json",
             "mcp-session-id": "session-1"
         }
-    });
+    }, config);
 
     assert.deepEqual(headers, {
         accept: "application/json",
@@ -27,9 +33,43 @@ test("does not forward hop-by-hop headers to upstreams", () => {
             "content-length": "100",
             "content-type": "application/json"
         }
-    });
+    }, config);
 
     assert.deepEqual(headers, {
         "content-type": "application/json"
+    });
+});
+
+test("only forwards headers included in upstream allowlist", () => {
+    const headers = copyHeadersToUpstream({
+        headers: {
+            accept: "application/json",
+            "mcp-session-id": "session-1",
+            "user-agent": "client",
+            origin: "https://app.example.com"
+        }
+    }, config);
+
+    assert.deepEqual(headers, {
+        accept: "application/json",
+        "mcp-session-id": "session-1"
+    });
+});
+
+test("never forwards gateway credentials even when configured", () => {
+    const headers = copyHeadersToUpstream({
+        headers: {
+            authorization: "Bearer dev_key_1",
+            "x-api-key": "dev_key_1",
+            accept: "application/json"
+        }
+    }, {
+        upstreamHeaders: {
+            forward: ["authorization", "x-api-key", "accept"]
+        }
+    });
+
+    assert.deepEqual(headers, {
+        accept: "application/json"
     });
 });

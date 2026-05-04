@@ -110,6 +110,16 @@ upstreams:
     url: "http://mcp-dummy:9000/mcp"
     timeoutMs: 30000
 
+upstreamHeaders:
+  # Only these request headers are forwarded to upstream MCP servers.
+  # Gateway credentials such as Authorization, X-API-Key, and Api-Key are never forwarded.
+  forward:
+    - "accept"
+    - "content-type"
+    - "mcp-session-id"
+    - "mcp-protocol-version"
+    - "last-event-id"
+
 routing:
   - match: { method: "*" }
     upstream: "mcp-local"
@@ -191,7 +201,8 @@ Runtime environment variables:
 
 Gateway credentials are used only at the gateway boundary. `Authorization`,
 `X-API-Key`, and `Api-Key` request headers are not forwarded to upstream MCP
-servers.
+servers. Use `upstreamHeaders.forward` to allow only the operational request
+headers that an upstream should receive.
 
 ---
 

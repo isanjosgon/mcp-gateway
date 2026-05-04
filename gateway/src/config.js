@@ -20,6 +20,14 @@ const RoutingRuleSchema = z.object({
     upstream: z.string()
 });
 
+const defaultForwardHeaders = [
+    "accept",
+    "content-type",
+    "mcp-session-id",
+    "mcp-protocol-version",
+    "last-event-id"
+];
+
 const ConfigSchema = z.object({
     server: z.object({
         host: z.string().default("127.0.0.1"),
@@ -59,6 +67,9 @@ const ConfigSchema = z.object({
         })).default([])
     }),
     upstreams: z.array(UpstreamSchema).min(1),
+    upstreamHeaders: z.object({
+        forward: z.array(z.string().min(1)).default(defaultForwardHeaders)
+    }).default({ forward: defaultForwardHeaders }),
     routing: z.array(RoutingRuleSchema).default([]),
     audit: z.object({
         enabled: z.boolean().default(true),
