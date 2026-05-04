@@ -14,6 +14,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Configurable upstream request header forwarding with `upstreamHeaders.forward`.
 - Hashed API keys via `keyHash` and audit-safe API key identifiers via `id`.
 - Graceful shutdown for `SIGTERM` and `SIGINT`.
+- JSON-RPC error responses for gateway-level `POST /mcp` failures.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.

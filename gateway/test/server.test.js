@@ -39,6 +39,12 @@ const config = {
     }
 };
 
+const mcpHeaders = {
+    origin: "https://app.example.com",
+    authorization: "Bearer dev_key_1",
+    "content-type": "application/json"
+};
+
 test("builds pino redaction paths from logging redactKeys", () => {
     const loggerOptions = buildLoggerOptions({
         level: "debug",
@@ -77,6 +83,108 @@ test("health endpoints are available without gateway auth or origin headers", as
         assert.equal(body.checks.rateLimit.status, "ok");
         assert.equal(body.checks.rateLimit.type, "memory");
     }
+});
+
+test("MCP POST auth failures return JSON-RPC errors", async () => {
+    const app = await buildServer(config, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: {
+            origin: "https://app.example.com",
+            "content-type": "application/json"
+        },
+        payload: { jsonrpc: "2.0", id: 7, method: "tools/list" }
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(body, {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+            code: -32001,
+            message: "Missing API key"
+        }
+    });
+});
+
+test("MCP POST policy failures preserve JSON-RPC ids", async () => {
+    const app = await buildServer({
+        ...config,
+        policy: {
+            default: "allow",
+            rules: [
+                {
+                    subject: { tenant: "client", client: "local-dev" },
+                    deny: { methods: ["tools/call"] }
+                }
+            ]
+        }
+    }, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: mcpHeaders,
+        payload: { jsonrpc: "2.0", id: 9, method: "tools/call", params: { name: "secret" } }
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(body, {
+        jsonrpc: "2.0",
+        id: 9,
+        error: {
+            code: -32003,
+            message: "Denied method: tools/call"
+        }
+    });
+});
+
+test("MCP POST batch rate-limit failures return JSON-RPC batch errors", async () => {
+    const app = await buildServer({
+        ...config,
+        rateLimit: {
+            ...config.rateLimit,
+            defaultRpm: 1
+        }
+    }, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: mcpHeaders,
+        payload: [
+            { jsonrpc: "2.0", id: 1, method: "tools/list" },
+            { jsonrpc: "2.0", id: 2, method: "tools/list" }
+        ]
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 429);
+    assert.deepEqual(body, [
+        {
+            jsonrpc: "2.0",
+            id: 1,
+            error: {
+                code: -32029,
+                message: "Rate limit exceeded"
+            }
+        },
+        {
+            jsonrpc: "2.0",
+            id: 2,
+            error: {
+                code: -32029,
+                message: "Rate limit exceeded"
+            }
+        }
+    ]);
 });
 
 test("graceful shutdown closes the app and exits cleanly", async () => {

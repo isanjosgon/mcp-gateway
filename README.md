@@ -181,6 +181,10 @@ Health endpoints are available without gateway API-key auth:
 - `http://localhost:8080/healthz`
 - `http://localhost:8080/health`
 
+Gateway-level failures on `POST /mcp`, such as auth, policy, origin, and
+rate-limit rejections, return JSON-RPC error objects while preserving the HTTP
+status code.
+
 Audit logs are enabled by default. The active environment is resolved from
 `MCP_GATEWAY_ENV`, then `NODE_ENV`, then `development`. Use
 `audit.environments` to choose where audit events are emitted, for example

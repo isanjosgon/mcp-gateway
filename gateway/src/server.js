@@ -155,6 +155,69 @@ const unlessPublic = (hook) => {
     };
 };
 
+const jsonRpcErrorCode = (statusCode) => {
+    if (statusCode === 400) return -32600;
+    if (statusCode === 401) return -32001;
+    if (statusCode === 403) return -32003;
+    if (statusCode === 429) return -32029;
+    if (statusCode >= 500) return -32603;
+    return -32000;
+};
+
+const errorStatusCode = (err) => {
+    const statusCode = err.statusCode ?? err.status ?? 500;
+    return Number.isInteger(statusCode) && statusCode >= 400 && statusCode <= 599
+        ? statusCode
+        : 500;
+};
+
+const hasJsonRpcId = (call) => {
+    return call && typeof call === "object" && Object.hasOwn(call, "id");
+};
+
+const jsonRpcError = (id, statusCode, message) => ({
+    jsonrpc: "2.0",
+    id,
+    error: {
+        code: jsonRpcErrorCode(statusCode),
+        message
+    }
+});
+
+const jsonRpcErrorBody = (body, statusCode, message) => {
+    if (Array.isArray(body)) {
+        const responses = body
+            .filter(hasJsonRpcId)
+            .map((call) => jsonRpcError(call.id ?? null, statusCode, message));
+
+        if (responses.length > 0) return responses;
+    }
+
+    if (hasJsonRpcId(body)) return jsonRpcError(body.id ?? null, statusCode, message);
+
+    return jsonRpcError(null, statusCode, message);
+};
+
+const isMcpPost = (config, req) => {
+    const path = req.url?.split("?")[0];
+    return req.method === "POST" && path === config.server.path;
+};
+
+const registerJsonRpcErrorHandler = (app, config) => {
+    app.setErrorHandler((err, req, reply) => {
+        const statusCode = errorStatusCode(err);
+
+        if (!isMcpPost(config, req)) {
+            return reply.status(statusCode).send(err);
+        }
+
+        const message = statusCode >= 500 ? "Internal error" : err.message;
+        return reply
+            .status(statusCode)
+            .send(jsonRpcErrorBody(req.body, statusCode, message));
+    });
+};
+
 const rateLimitHealth = async (rateLimitStore) => {
     if (typeof rateLimitStore.health !== "function") {
         return { status: "unknown", type: rateLimitStore.type ?? "unknown" };
@@ -196,6 +259,8 @@ export async function buildServer(config, { env = process.env } = {})
         logger: buildLoggerOptions(config.logging),
         bodyLimit: 2 * 1024 * 1024 // 2MB
     });
+    registerJsonRpcErrorHandler(app, config);
+
     const rateLimitStore = await createRateLimitStore({ env, logger: app.log });
     app.decorate("rateLimitStoreType", rateLimitStore.type);
 
