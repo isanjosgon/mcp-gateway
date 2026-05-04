@@ -82,3 +82,87 @@ test("rejects API key entries without key or keyHash", () => {
         /Either key or keyHash is required/
     );
 });
+
+test("resolves upstream API key auth env placeholders", () => {
+    const config = parseConfig({
+        ...baseConfig,
+        upstreams: [
+            {
+                name: "agents-staging",
+                type: "http",
+                url: "https://apidev.smartickia.com/api/v2/mcp",
+                auth: {
+                    type: "apiKey",
+                    apiKey: {
+                        header: "Authorization",
+                        value: "Api-Key ${AGENTS_STAGING_MCP_API_KEY}"
+                    }
+                }
+            }
+        ],
+        routing: [
+            { match: { method: "*" }, upstream: "agents-staging" }
+        ]
+    }, {
+        env: { AGENTS_STAGING_MCP_API_KEY: "upstream-secret" }
+    });
+
+    assert.equal(
+        config.upstreams[0].auth.apiKey.value,
+        "Api-Key upstream-secret"
+    );
+});
+
+test("rejects upstream API key auth when an env placeholder is missing", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            upstreams: [
+                {
+                    name: "agents-staging",
+                    type: "http",
+                    url: "https://apidev.smartickia.com/api/v2/mcp",
+                    auth: {
+                        type: "apiKey",
+                        apiKey: {
+                            header: "Authorization",
+                            value: "Api-Key ${AGENTS_STAGING_MCP_API_KEY}"
+                        }
+                    }
+                }
+            ],
+            routing: [
+                { match: { method: "*" }, upstream: "agents-staging" }
+            ]
+        }, {
+            env: {}
+        }),
+        /Missing environment variable AGENTS_STAGING_MCP_API_KEY/
+    );
+});
+
+test("rejects invalid upstream API key header names", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            upstreams: [
+                {
+                    name: "agents-staging",
+                    type: "http",
+                    url: "https://apidev.smartickia.com/api/v2/mcp",
+                    auth: {
+                        type: "apiKey",
+                        apiKey: {
+                            header: "Bad Header",
+                            value: "Api-Key upstream-secret"
+                        }
+                    }
+                }
+            ],
+            routing: [
+                { match: { method: "*" }, upstream: "agents-staging" }
+            ]
+        }),
+        /valid HTTP header name/
+    );
+});
