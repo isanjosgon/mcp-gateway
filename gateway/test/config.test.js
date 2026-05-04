@@ -88,23 +88,23 @@ test("resolves upstream API key auth env placeholders", () => {
         ...baseConfig,
         upstreams: [
             {
-                name: "agents-staging",
+                name: "example-upstream",
                 type: "http",
                 url: "https://mcp-upstream.example.com/api/v2/mcp",
                 auth: {
                     type: "apiKey",
                     apiKey: {
                         header: "Authorization",
-                        value: "Api-Key ${AGENTS_STAGING_MCP_API_KEY}"
+                        value: "Api-Key ${EXAMPLE_UPSTREAM_API_KEY}"
                     }
                 }
             }
         ],
         routing: [
-            { match: { method: "*" }, upstream: "agents-staging" }
+            { match: { method: "*" }, upstream: "example-upstream" }
         ]
     }, {
-        env: { AGENTS_STAGING_MCP_API_KEY: "upstream-secret" }
+        env: { EXAMPLE_UPSTREAM_API_KEY: "upstream-secret" }
     });
 
     assert.equal(
@@ -119,25 +119,25 @@ test("rejects upstream API key auth when an env placeholder is missing", () => {
             ...baseConfig,
             upstreams: [
                 {
-                    name: "agents-staging",
+                    name: "example-upstream",
                     type: "http",
                     url: "https://mcp-upstream.example.com/api/v2/mcp",
                     auth: {
                         type: "apiKey",
                         apiKey: {
                             header: "Authorization",
-                            value: "Api-Key ${AGENTS_STAGING_MCP_API_KEY}"
+                            value: "Api-Key ${EXAMPLE_UPSTREAM_API_KEY}"
                         }
                     }
                 }
             ],
             routing: [
-                { match: { method: "*" }, upstream: "agents-staging" }
+                { match: { method: "*" }, upstream: "example-upstream" }
             ]
         }, {
             env: {}
         }),
-        /Missing environment variable AGENTS_STAGING_MCP_API_KEY/
+        /Missing environment variable EXAMPLE_UPSTREAM_API_KEY/
     );
 });
 
@@ -147,7 +147,7 @@ test("rejects invalid upstream API key header names", () => {
             ...baseConfig,
             upstreams: [
                 {
-                    name: "agents-staging",
+                    name: "example-upstream",
                     type: "http",
                     url: "https://mcp-upstream.example.com/api/v2/mcp",
                     auth: {
@@ -160,7 +160,7 @@ test("rejects invalid upstream API key header names", () => {
                 }
             ],
             routing: [
-                { match: { method: "*" }, upstream: "agents-staging" }
+                { match: { method: "*" }, upstream: "example-upstream" }
             ]
         }),
         /valid HTTP header name/

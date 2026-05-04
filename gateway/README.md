@@ -233,7 +233,7 @@ startup; missing or empty variables fail config validation.
 
 ```yaml
 upstreams:
-  - name: agents-staging
+  - name: example-upstream
     type: http
     url: "https://mcp-upstream.example.com/api/v2/mcp"
     timeoutMs: 30000
@@ -241,7 +241,7 @@ upstreams:
       type: apiKey
       apiKey:
         header: "Authorization"
-        value: "Api-Key ${AGENTS_STAGING_MCP_API_KEY}"
+        value: "Api-Key ${EXAMPLE_UPSTREAM_API_KEY}"
 ```
 
 ---
