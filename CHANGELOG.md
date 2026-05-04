@@ -13,6 +13,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - HTTP health endpoints at `GET /healthz` and `GET /health`.
 - Configurable upstream request header forwarding with `upstreamHeaders.forward`.
 - Hashed API keys via `keyHash` and audit-safe API key identifiers via `id`.
+- Graceful shutdown for `SIGTERM` and `SIGINT`.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.

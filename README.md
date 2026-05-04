@@ -173,6 +173,10 @@ npx @isanjosgon/mcp-gateway run -c config.yml
 Gateway will listen on:
 - `http://localhost:8080/mcp`
 
+The process handles `SIGTERM` and `SIGINT` with graceful shutdown: Fastify stops
+accepting traffic, open resources such as Redis rate-limit connections are
+closed, and the process exits after shutdown completes.
+
 Health endpoints are available without gateway API-key auth:
 - `http://localhost:8080/healthz`
 - `http://localhost:8080/health`

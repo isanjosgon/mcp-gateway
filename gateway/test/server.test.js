@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildLoggerOptions, buildServer } from "../src/server.js";
+import { buildLoggerOptions, buildServer, installGracefulShutdown } from "../src/server.js";
 
 const config = {
     server: {
@@ -77,4 +77,38 @@ test("health endpoints are available without gateway auth or origin headers", as
         assert.equal(body.checks.rateLimit.status, "ok");
         assert.equal(body.checks.rateLimit.type, "memory");
     }
+});
+
+test("graceful shutdown closes the app and exits cleanly", async () => {
+    const handlers = new Map();
+    const exits = [];
+    const processLike = {
+        once(signal, handler) {
+            handlers.set(signal, handler);
+        },
+        off(signal, handler) {
+            if (handlers.get(signal) === handler) handlers.delete(signal);
+        }
+    };
+
+    const app = await buildServer(config, { env: {} });
+    let closed = false;
+    app.addHook("onClose", async () => {
+        closed = true;
+    });
+
+    installGracefulShutdown(app, {
+        processLike,
+        timeoutMs: 100,
+        exit: (code) => exits.push(code)
+    });
+
+    assert.equal(typeof handlers.get("SIGTERM"), "function");
+
+    await handlers.get("SIGTERM")();
+
+    assert.equal(closed, true);
+    assert.deepEqual(exits, [0]);
+    assert.equal(handlers.has("SIGTERM"), false);
+    assert.equal(handlers.has("SIGINT"), false);
 });

@@ -73,6 +73,79 @@ export const buildLoggerOptions = (logging = {}) => {
     return options;
 };
 
+export const SHUTDOWN_SIGNALS = ["SIGTERM", "SIGINT"];
+
+export function installGracefulShutdown(app, {
+    processLike = process,
+    signals = SHUTDOWN_SIGNALS,
+    timeoutMs = 10_000,
+    exit = (code) => processLike.exit(code),
+    timers = { setTimeout, clearTimeout },
+    logger = app.log
+} = {}) {
+    const handlers = new Map();
+    let closing = false;
+    let disposed = false;
+    let timeoutId;
+
+    const removeHandler = (signal, handler) => {
+        if (typeof processLike.off === "function") {
+            processLike.off(signal, handler);
+            return;
+        }
+
+        processLike.removeListener?.(signal, handler);
+    };
+
+    const dispose = () => {
+        if (disposed) return;
+
+        disposed = true;
+        for (const [signal, handler] of handlers.entries()) {
+            removeHandler(signal, handler);
+        }
+        handlers.clear();
+
+        if (timeoutId) {
+            timers.clearTimeout(timeoutId);
+            timeoutId = undefined;
+        }
+    };
+
+    const shutdown = async (signal) => {
+        if (closing) return;
+        closing = true;
+
+        logger.info({ signal }, "mcp-gateway shutting down");
+        timeoutId = timers.setTimeout(() => {
+            logger.error({ signal, timeoutMs }, "mcp-gateway shutdown timed out");
+            exit(1);
+        }, timeoutMs);
+        timeoutId?.unref?.();
+
+        try {
+            await app.close();
+            dispose();
+            logger.info({ signal }, "mcp-gateway stopped");
+            exit(0);
+        } catch (err) {
+            dispose();
+            logger.error({ err, signal }, "mcp-gateway shutdown failed");
+            exit(1);
+        }
+    };
+
+    for (const signal of signals) {
+        const handler = () => shutdown(signal);
+        handlers.set(signal, handler);
+        processLike.once(signal, handler);
+    }
+
+    app.addHook("onClose", async () => dispose());
+
+    return dispose;
+}
+
 const isPublicRoute = (req) => req.routeOptions?.config?.public === true;
 
 const unlessPublic = (hook) => {
@@ -145,15 +218,24 @@ export async function buildServer(config, { env = process.env } = {})
     return app;
 }
 
-export async function startServer(config) 
+export async function startServer(config, { env = process.env, processLike = process } = {})
 {
-    const app = await buildServer(config);
+    const app = await buildServer(config, { env });
+    const disposeShutdownHandlers = installGracefulShutdown(app, { processLike });
 
-    await app.listen({ host: config.server.host, port: config.server.port });
+    try {
+        await app.listen({ host: config.server.host, port: config.server.port });
+    } catch (err) {
+        disposeShutdownHandlers();
+        throw err;
+    }
+
     app.log.info({
         host: config.server.host,
         port: config.server.port,
         path: config.server.path,
         rateLimitStore: app.rateLimitStoreType
     }, "mcp-gateway up");
+
+    return app;
 }
