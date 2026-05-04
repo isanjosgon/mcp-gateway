@@ -12,6 +12,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Audit logging controls by environment using `audit.enabled`, `audit.environments`, `MCP_GATEWAY_ENV`, and `NODE_ENV`.
 - HTTP health endpoints at `GET /healthz` and `GET /health`.
 - Configurable upstream request header forwarding with `upstreamHeaders.forward`.
+- Hashed API keys via `keyHash` and audit-safe API key identifiers via `id`.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.

@@ -9,7 +9,10 @@ server:
 auth:
   mode: apiKey
   apiKeys:
-    - key: "dev_key_1"
+    - id: "local-dev-key"
+      # Use keyHash in production. Plain key is convenient for local development.
+      key: "dev_key_1"
+      # keyHash: "sha256:REPLACE_WITH_SHA256_HEX_OF_THE_API_KEY"
       tenant: "client"
       client: "local-dev"
 

@@ -20,6 +20,17 @@ const RoutingRuleSchema = z.object({
     upstream: z.string()
 });
 
+const ApiKeySchema = z.object({
+    id: z.string().min(1).optional(),
+    key: z.string().min(1).optional(),
+    keyHash: z.string().regex(/^sha256:[a-f0-9]{64}$/i, "keyHash must use sha256:<hex>").optional(),
+    tenant: z.string(),
+    client: z.string()
+}).refine((apiKey) => apiKey.key || apiKey.keyHash, {
+    message: "Either key or keyHash is required",
+    path: ["key"]
+});
+
 const defaultForwardHeaders = [
     "accept",
     "content-type",
@@ -37,11 +48,7 @@ const ConfigSchema = z.object({
     }),
     auth: z.object({
         mode: z.enum(["none", "apiKey"]).default("none"),
-        apiKeys: z.array(z.object({
-            key: z.string(),
-            tenant: z.string(),
-            client: z.string()
-        })).default([])
+        apiKeys: z.array(ApiKeySchema).default([])
     }),
     rateLimit: z.object({
         keyPrefix: z.string().min(1).default("mcp-gateway"),

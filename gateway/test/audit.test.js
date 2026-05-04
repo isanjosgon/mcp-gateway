@@ -44,7 +44,7 @@ test("audit log includes resolved environment and request metadata", async () =>
     const req = {
         requestId: "req-1",
         method: "POST",
-        subject: { tenant: "client", client: "local-dev" },
+        subject: { tenant: "client", client: "local-dev", apiKeyId: "local-dev-key" },
         body: {
             jsonrpc: "2.0",
             id: 1,
@@ -67,6 +67,7 @@ test("audit log includes resolved environment and request metadata", async () =>
         requestId: "req-1",
         tenant: "client",
         client: "local-dev",
+        apiKeyId: "local-dev-key",
         environment: "production",
         httpMethod: "POST",
         mcpMethod: "tools/call",

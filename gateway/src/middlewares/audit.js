@@ -38,6 +38,7 @@ export function audit(_cfg, { env = process.env } = {}) {
                 requestId: req.requestId,
                 tenant: subject.tenant,
                 client: subject.client,
+                ...(subject.apiKeyId ? { apiKeyId: subject.apiKeyId } : {}),
                 environment,
                 httpMethod: req.method,
                 mcpMethod,

@@ -72,7 +72,10 @@ server:
 auth:
   mode: apiKey
   apiKeys:
-    - key: "dev_key_1"
+    - id: "local-dev-key"
+      # Use keyHash in production. Plain key is convenient for local development.
+      key: "dev_key_1"
+      # keyHash: "sha256:REPLACE_WITH_SHA256_HEX_OF_THE_API_KEY"
       tenant: "client"
       client: "local-dev"
 
@@ -150,6 +153,10 @@ Authorization: Api-Key dev_key_1
 X-API-Key: dev_key_1
 Api-Key: dev_key_1
 ```
+
+For production configs, prefer `keyHash` over storing plaintext keys. The
+expected format is `sha256:<hex>`. `id` is optional but recommended because it
+appears in audit logs as `apiKeyId` without exposing the secret.
 
 ### 2) Run
 
