@@ -1,10 +1,12 @@
 {
   "name": "@isanjosgon/mcp-gateway",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP Streamable HTTP gateway with auth, policy, rate limiting and routing.",
   "type": "module",
   "license": "MIT",
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "author": "Isra San Jose",
   "repository": {
     "type": "git",
