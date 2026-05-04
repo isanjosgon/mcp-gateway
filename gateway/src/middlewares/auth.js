@@ -1,4 +1,4 @@
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 
 const firstHeaderValue = (value) => {
     if (Array.isArray(value)) return value.find((v) => typeof v === "string" && v.trim())?.trim() ?? null;
@@ -31,6 +31,21 @@ const apiKeysEqual = (a, b) => {
     return left.length === right.length && timingSafeEqual(left, right);
 };
 
+const sha256 = (value) => {
+    return createHash("sha256").update(value).digest("hex");
+};
+
+const keyHashValue = (keyHash) => {
+    return keyHash.slice("sha256:".length).toLowerCase();
+};
+
+const apiKeyMatches = (apiKey, token) => {
+    if (apiKey.key && apiKeysEqual(apiKey.key, token)) return true;
+    if (!apiKey.keyHash) return false;
+
+    return apiKeysEqual(keyHashValue(apiKey.keyHash), sha256(token));
+};
+
 export function authn(cfg) {
     return async (req) => {
         if (cfg.auth.mode === "none") {
@@ -46,13 +61,17 @@ export function authn(cfg) {
             throw err;
         }
 
-        const match = cfg.auth.apiKeys.find((k) => apiKeysEqual(k.key, token));
+        const match = cfg.auth.apiKeys.find((k) => apiKeyMatches(k, token));
         if (!match) {
             const err = new Error("Invalid API key");
             err.statusCode = 401;
             throw err;
         }
 
-        req.subject = { tenant: match.tenant, client: match.client };
+        req.subject = {
+            tenant: match.tenant,
+            client: match.client,
+            ...(match.id ? { apiKeyId: match.id } : {})
+        };
     };
 }

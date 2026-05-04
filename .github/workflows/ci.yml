@@ -2,27 +2,27 @@ name: ci
 
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "develop"]
   pull_request:
 
 jobs:
   gateway:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: gateway
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: gateway/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install
         run: npm ci
+
+      - name: Test
+        run: npm test
 
       - name: Validate example config
         run: npm run validate

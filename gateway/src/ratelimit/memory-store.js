@@ -28,6 +28,10 @@ export function createMemoryRateLimitStore({ now = () => Date.now() } = {}) {
 
         async close() {
             buckets.clear();
+        },
+
+        async health() {
+            return { status: "ok", type: "memory" };
         }
     };
 }

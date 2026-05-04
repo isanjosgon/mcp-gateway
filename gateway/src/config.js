@@ -20,6 +20,25 @@ const RoutingRuleSchema = z.object({
     upstream: z.string()
 });
 
+const ApiKeySchema = z.object({
+    id: z.string().min(1).optional(),
+    key: z.string().min(1).optional(),
+    keyHash: z.string().regex(/^sha256:[a-f0-9]{64}$/i, "keyHash must use sha256:<hex>").optional(),
+    tenant: z.string(),
+    client: z.string()
+}).refine((apiKey) => apiKey.key || apiKey.keyHash, {
+    message: "Either key or keyHash is required",
+    path: ["key"]
+});
+
+const defaultForwardHeaders = [
+    "accept",
+    "content-type",
+    "mcp-session-id",
+    "mcp-protocol-version",
+    "last-event-id"
+];
+
 const ConfigSchema = z.object({
     server: z.object({
         host: z.string().default("127.0.0.1"),
@@ -29,11 +48,7 @@ const ConfigSchema = z.object({
     }),
     auth: z.object({
         mode: z.enum(["none", "apiKey"]).default("none"),
-        apiKeys: z.array(z.object({
-            key: z.string(),
-            tenant: z.string(),
-            client: z.string()
-        })).default([])
+        apiKeys: z.array(ApiKeySchema).default([])
     }),
     rateLimit: z.object({
         keyPrefix: z.string().min(1).default("mcp-gateway"),
@@ -59,17 +74,41 @@ const ConfigSchema = z.object({
         })).default([])
     }),
     upstreams: z.array(UpstreamSchema).min(1),
+    upstreamHeaders: z.object({
+        forward: z.array(z.string().min(1)).default(defaultForwardHeaders)
+    }).default({ forward: defaultForwardHeaders }),
     routing: z.array(RoutingRuleSchema).default([]),
+    audit: z.object({
+        enabled: z.boolean().default(true),
+        environments: z.array(z.string().min(1)).default(["*"])
+    }).default({ enabled: true, environments: ["*"] }),
     logging: z.object({
         level: z.string().default("info"),
         redactKeys: z.array(z.string()).default([])
     }).default({ level: "info", redactKeys: [] })
+}).superRefine((cfg, ctx) => {
+    const upstreamNames = new Set(cfg.upstreams.map((upstream) => upstream.name));
+
+    cfg.routing.forEach((rule, index) => {
+        if (!upstreamNames.has(rule.upstream)) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["routing", index, "upstream"],
+                message: `Unknown upstream: ${rule.upstream}`
+            });
+        }
+    });
 });
 
+
+export function parseConfig(config)
+{
+    return ConfigSchema.parse(config);
+}
 
 export async function loadConfig(path)
 {
     const raw = await fs.readFile(path, "utf8");
     const parsed = YAML.parse(raw);
-    return ConfigSchema.parse(parsed);
+    return parseConfig(parsed);
 }

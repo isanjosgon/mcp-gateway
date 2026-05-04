@@ -30,6 +30,7 @@ Running MCP servers in production usually needs more than “it works”:
 - **Rate limiting** per tenant/client (with per-method overrides, in-memory or Redis-backed)
 - **Audit logs** (structured, consistent logging)
 - **SSE passthrough** (`text/event-stream`) when upstream returns it
+- HTTP health endpoints (`GET /healthz` and `GET /health`)
 - Docker Compose-friendly setup (upstreams can remain unexposed to the host)
 
 ---
@@ -44,12 +45,12 @@ Running MCP servers in production usually needs more than “it works”:
 
 ### Global
 ```bash
-npm i -g mcp-gateway
+npm i -g @isanjosgon/mcp-gateway
 ```
 
 ### Project-local
 ```bash
-npm i mcp-gateway
+npm i @isanjosgon/mcp-gateway
 ```
 
 ---
@@ -71,7 +72,10 @@ server:
 auth:
   mode: apiKey
   apiKeys:
-    - key: "dev_key_1"
+    - id: "local-dev-key"
+      # Use keyHash in production. Plain key is convenient for local development.
+      key: "dev_key_1"
+      # keyHash: "sha256:REPLACE_WITH_SHA256_HEX_OF_THE_API_KEY"
       tenant: "client"
       client: "local-dev"
 
@@ -109,14 +113,32 @@ upstreams:
     url: "http://mcp-dummy:9000/mcp"
     timeoutMs: 30000
 
+upstreamHeaders:
+  # Only these request headers are forwarded to upstream MCP servers.
+  # Gateway credentials such as Authorization, X-API-Key, and Api-Key are never forwarded.
+  forward:
+    - "accept"
+    - "content-type"
+    - "mcp-session-id"
+    - "mcp-protocol-version"
+    - "last-event-id"
+
 routing:
   - match: { method: "*" }
     upstream: "mcp-local"
+
+audit:
+  enabled: true
+  # Environment is resolved from MCP_GATEWAY_ENV, then NODE_ENV, then "development".
+  # Use ["*"] to log audit events in all environments.
+  environments: ["production", "staging"]
 
 logging:
   level: "info"
   redactKeys:
     - "authorization"
+    - "x-api-key"
+    - "api-key"
     - "token"
     - "access_token"
     - "password"
@@ -132,6 +154,10 @@ X-API-Key: dev_key_1
 Api-Key: dev_key_1
 ```
 
+For production configs, prefer `keyHash` over storing plaintext keys. The
+expected format is `sha256:<hex>`. `id` is optional but recommended because it
+appears in audit logs as `apiKeyId` without exposing the secret.
+
 ### 2) Run
 
 Global install:
@@ -141,11 +167,28 @@ mcp-gateway run -c config.yml
 
 Local install:
 ```bash
-npx mcp-gateway run -c config.yml
+npx @isanjosgon/mcp-gateway run -c config.yml
 ```
 
 Gateway will listen on:
 - `http://localhost:8080/mcp`
+
+The process handles `SIGTERM` and `SIGINT` with graceful shutdown: Fastify stops
+accepting traffic, open resources such as Redis rate-limit connections are
+closed, and the process exits after shutdown completes.
+
+Health endpoints are available without gateway API-key auth:
+- `http://localhost:8080/healthz`
+- `http://localhost:8080/health`
+
+Gateway-level failures on `POST /mcp`, such as auth, policy, origin, and
+rate-limit rejections, return JSON-RPC error objects while preserving the HTTP
+status code.
+
+Audit logs are enabled by default. The active environment is resolved from
+`MCP_GATEWAY_ENV`, then `NODE_ENV`, then `development`. Use
+`audit.environments` to choose where audit events are emitted, for example
+`["production", "staging"]`, or `["*"]` for all environments.
 
 Rate limiting uses in-memory buckets by default. Set `REDIS_URL`, for example
 `REDIS_URL=redis://localhost:6379`, to use Redis-backed buckets shared across
@@ -161,6 +204,20 @@ Redis keys use this shape:
 Use a distinct `rateLimit.keyPrefix` per product, deployment, or environment,
 for example `mcp-gateway:prod`. `RATE_LIMIT_KEY_PREFIX` overrides the config
 value at runtime.
+
+Runtime environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `REDIS_URL` | Enables Redis-backed rate limiting, for example `redis://localhost:6379`. |
+| `RATE_LIMIT_KEY_PREFIX` | Overrides `rateLimit.keyPrefix` to separate products or environments sharing Redis. |
+| `MCP_GATEWAY_ENV` | Primary environment name used by audit filtering. |
+| `NODE_ENV` | Fallback environment name when `MCP_GATEWAY_ENV` is not set. |
+
+Gateway credentials are used only at the gateway boundary. `Authorization`,
+`X-API-Key`, and `Api-Key` request headers are not forwarded to upstream MCP
+servers. Use `upstreamHeaders.forward` to allow only the operational request
+headers that an upstream should receive.
 
 ---
 
@@ -216,6 +273,9 @@ Routing is **first-match wins**. A rule can match:
 - `match.prompt`: (only for `prompts/get`) glob pattern for `params.name`
 - `upstream`: name of the destination upstream
 
+Config validation fails if a routing rule references an upstream name that is
+not declared in `upstreams`.
+
 Example with 3 upstreams:
 
 ```yaml
@@ -256,7 +316,6 @@ routing:
 ```bash
 mcp-gateway run -c config.yml
 mcp-gateway validate -c config.yml
-mcp-gateway print-config -c config.yml
 mcp-gateway routes -c config.yml
 mcp-gateway health
 ```
@@ -275,10 +334,14 @@ docker compose exec mcp-gateway node src/cli.js validate -c /config/config.yml
 
 A common pattern is to **not publish** upstream ports to the host. Only the gateway is exposed:
 
+- Redis service: no `ports:` (only internal networking)
 - Upstream service: no `ports:` (only internal networking)
 - Gateway service: `ports: ["8080:8080"]`
 
-This keeps the MCP upstream reachable only from the gateway on the Docker network.
+This keeps Redis and the MCP upstream reachable only from the gateway on the
+Docker network. The included `docker-compose.yml` sets
+`REDIS_URL=redis://redis:6379` so rate limits are shared across gateway
+instances that use the same Redis and key prefix.
 
 ---
 

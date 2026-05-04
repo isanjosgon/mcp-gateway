@@ -62,6 +62,19 @@ export async function createRedisRateLimitStore({ url, logger }) {
             } else if (typeof client.destroy === "function") {
                 client.destroy();
             }
+        },
+
+        async health() {
+            try {
+                await client.ping();
+                return { status: "ok", type: "redis" };
+            } catch (err) {
+                return {
+                    status: "error",
+                    type: "redis",
+                    message: err instanceof Error ? err.message : "Redis health check failed"
+                };
+            }
         }
     };
 }

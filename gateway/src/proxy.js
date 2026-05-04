@@ -15,14 +15,29 @@ const hopByHop = new Set([
     "content-encoding"
 ]);
 
-const copyHeadersToUpstream = (req) => {
+const gatewayOnlyHeaders = new Set([
+    "authorization",
+    "x-api-key",
+    "api-key"
+]);
+
+const forwardedHeaders = (config) => {
+    return new Set((config.upstreamHeaders?.forward ?? []).map((header) => header.toLowerCase()));
+};
+
+export const copyHeadersToUpstream = (req, config = {}) => {
+    const allowed = forwardedHeaders(config);
     const headers = {};
+
     for (const [k, v] of Object.entries(req.headers)) {
         if (!v) continue;
         const key = k.toLowerCase();
         if (hopByHop.has(key)) continue;
+        if (gatewayOnlyHeaders.has(key)) continue;
+        if (!allowed.has(key)) continue;
         headers[key] = Array.isArray(v) ? v.join(", ") : String(v);
     }
+
     return headers;
 };
 
@@ -38,7 +53,7 @@ export async function proxyUpstream(config, req, reply) {
 
     try {
         const method = req.method;
-        const headers = copyHeadersToUpstream(req);
+        const headers = copyHeadersToUpstream(req, config);
 
         if (method === "POST" && !("content-type" in headers)) {
             headers["content-type"] = "application/json";
