@@ -85,6 +85,90 @@ test("health endpoints are available without gateway auth or origin headers", as
     }
 });
 
+test("MCP POST requests without Origin continue to auth by default", async () => {
+    const app = await buildServer(config, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: {
+            "content-type": "application/json"
+        },
+        payload: { jsonrpc: "2.0", id: 6, method: "tools/list" }
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 401);
+    assert.deepEqual(body, {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+            code: -32001,
+            message: "Missing API key"
+        }
+    });
+});
+
+test("MCP POST requests without Origin can be rejected explicitly", async () => {
+    const app = await buildServer({
+        ...config,
+        server: {
+            ...config.server,
+            requireOrigin: true
+        }
+    }, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: {
+            authorization: "Bearer dev_key_1",
+            "content-type": "application/json"
+        },
+        payload: { jsonrpc: "2.0", id: 7, method: "tools/list" }
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(body, {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+            code: -32600,
+            message: "Missing Origin"
+        }
+    });
+});
+
+test("MCP POST requests with disallowed Origin are rejected", async () => {
+    const app = await buildServer(config, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: {
+            origin: "https://evil.example.com",
+            authorization: "Bearer dev_key_1",
+            "content-type": "application/json"
+        },
+        payload: { jsonrpc: "2.0", id: 8, method: "tools/list" }
+    });
+    const body = response.json();
+
+    assert.equal(response.statusCode, 403);
+    assert.deepEqual(body, {
+        jsonrpc: "2.0",
+        id: null,
+        error: {
+            code: -32003,
+            message: "Origin not allowed"
+        }
+    });
+});
+
 test("MCP POST auth failures return JSON-RPC errors", async () => {
     const app = await buildServer(config, { env: {} });
     test.after(async () => app.close());
