@@ -35,6 +35,19 @@ test("accepts routing rules that reference configured upstreams", () => {
     const config = parseConfig(baseConfig);
 
     assert.equal(config.routing[0].upstream, "mcp-local");
+    assert.equal(config.server.requireOrigin, false);
+});
+
+test("accepts strict Origin requirement config", () => {
+    const config = parseConfig({
+        ...baseConfig,
+        server: {
+            ...baseConfig.server,
+            requireOrigin: true
+        }
+    });
+
+    assert.equal(config.server.requireOrigin, true);
 });
 
 test("rejects routing rules that reference unknown upstreams", () => {

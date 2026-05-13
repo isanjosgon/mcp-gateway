@@ -60,7 +60,8 @@ const ConfigSchema = z.object({
         host: z.string().default("127.0.0.1"),
         port: z.number().int().default(8080),
         path: z.string().default("/mcp"),
-        allowedOrigins: z.array(z.string()).default([])
+        allowedOrigins: z.array(z.string()).default([]),
+        requireOrigin: z.boolean().default(false)
     }),
     auth: z.object({
         mode: z.enum(["none", "apiKey"]).default("none"),

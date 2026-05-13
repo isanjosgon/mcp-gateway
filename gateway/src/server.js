@@ -268,7 +268,9 @@ export async function buildServer(config, { env = process.env } = {})
 
     // Middleware chain
     app.addHook("onRequest", requestId());
-    app.addHook("onRequest", unlessPublic(originGuard(config.server.allowedOrigins)));
+    app.addHook("onRequest", unlessPublic(originGuard(config.server.allowedOrigins, {
+        requireOrigin: config.server.requireOrigin
+    })));
     app.addHook("onRequest", unlessPublic(authn(config)));
     app.addHook("preHandler", unlessPublic(authzPolicy(config)));
     app.addHook("preHandler", unlessPublic(rateLimit(config, { store: rateLimitStore, env })));

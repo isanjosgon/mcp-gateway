@@ -69,6 +69,9 @@ server:
   path: /mcp
   allowedOrigins:
     - "http://localhost:3000"
+  # Requests without an Origin header are allowed by default for non-browser clients.
+  # Set to true to reject requests that omit Origin.
+  requireOrigin: false
 
 auth:
   mode: apiKey
@@ -165,6 +168,14 @@ Api-Key: dev_key_1
 For production configs, prefer `keyHash` over storing plaintext keys. The
 expected format is `sha256:<hex>`. `id` is optional but recommended because it
 appears in audit logs as `apiKeyId` without exposing the secret.
+
+`allowedOrigins` is enforced when a request includes an `Origin` header. Some
+non-browser MCP clients do not send `Origin`, so those requests are allowed by
+default and still go through gateway auth, policy, and rate limiting. Set
+`server.requireOrigin: true` to reject requests that omit `Origin`. The gateway
+does not derive origin from `Referer`, `Host`, `X-Forwarded-Host`, or remote IP
+because those fields describe different parts of the request and are not a
+reliable browser origin substitute.
 
 ### 2) Run
 
