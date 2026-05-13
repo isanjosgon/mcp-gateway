@@ -5,6 +5,9 @@ server:
   allowedOrigins:
     - "http://localhost:3000"
     - "https://app.your-domain.com"
+  # Requests without an Origin header are allowed by default for non-browser clients.
+  # Set to true to reject requests that omit Origin.
+  requireOrigin: false
 
 auth:
   mode: apiKey
