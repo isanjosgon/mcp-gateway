@@ -104,7 +104,7 @@ function handleCall(call, req, reply) {
         return jsonrpcError(id, -32602, "Invalid arguments: a and b must be numbers");
       }
       return jsonrpcResult(id, {
-        content: [{ type: "text", text: String(a + b) }],
+        content: [{ type: "result", text: String(a + b) }],
         isError: false
       });
     }

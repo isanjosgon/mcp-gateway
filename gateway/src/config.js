@@ -121,7 +121,7 @@ const ConfigSchema = z.object({
 const resolveEnvPlaceholders = (value, env, path) => {
     return value.replace(EnvPlaceholder, (_match, name) => {
         const replacement = env[name];
-        if (replacement === undefined || replacement === "") {
+        if (replacement === undefined || replacement.trim() === "") {
             throw new Error(`Missing environment variable ${name} for ${path}`);
         }
 
@@ -129,8 +129,22 @@ const resolveEnvPlaceholders = (value, env, path) => {
     });
 };
 
+const requireSecretValue = (value, path) => {
+    if (!value.trim()) {
+        throw new Error(`Missing secret value for ${path}`);
+    }
+
+    if (value !== value.trim()) {
+        throw new Error(`Secret value must not start or end with whitespace for ${path}`);
+    }
+
+    return value;
+};
+
 const resolveUpstreamAuth = (upstream, index, env) => {
     if (upstream.auth?.type !== "apiKey") return upstream;
+
+    const path = `upstreams[${index}].auth.apiKey.value`;
 
     return {
         ...upstream,
@@ -138,18 +152,32 @@ const resolveUpstreamAuth = (upstream, index, env) => {
             ...upstream.auth,
             apiKey: {
                 ...upstream.auth.apiKey,
-                value: resolveEnvPlaceholders(
-                    upstream.auth.apiKey.value,
-                    env,
-                    `upstreams[${index}].auth.apiKey.value`
+                value: requireSecretValue(
+                    resolveEnvPlaceholders(upstream.auth.apiKey.value, env, path),
+                    path
                 )
             }
         }
     };
 };
 
+const resolveApiKey = (apiKey, index, env) => {
+    if (!apiKey.key) return apiKey;
+
+    const path = `auth.apiKeys[${index}].key`;
+
+    return {
+        ...apiKey,
+        key: requireSecretValue(resolveEnvPlaceholders(apiKey.key, env, path), path)
+    };
+};
+
 const resolveConfigSecrets = (cfg, env) => ({
     ...cfg,
+    auth: {
+        ...cfg.auth,
+        apiKeys: cfg.auth.apiKeys.map((apiKey, index) => resolveApiKey(apiKey, index, env))
+    },
     upstreams: cfg.upstreams.map((upstream, index) => resolveUpstreamAuth(upstream, index, env))
 });
 
