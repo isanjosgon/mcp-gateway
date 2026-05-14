@@ -14,7 +14,8 @@ auth:
   apiKeys:
     - id: "local-dev-key"
       # Use keyHash in production. Plain key is convenient for local development.
-      key: "dev_key_1"
+      # Plain keys can use ${ENV_VAR} placeholders resolved at startup.
+      key: "${MCP_LOCAL_API_KEY}"
       # keyHash: "sha256:REPLACE_WITH_SHA256_HEX_OF_THE_API_KEY"
       tenant: "client"
       client: "local-dev"

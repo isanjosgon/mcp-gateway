@@ -81,6 +81,71 @@ test("accepts hashed API key entries", () => {
     assert.equal(config.auth.apiKeys[0].id, "hashed-key");
 });
 
+test("resolves gateway API key env placeholders", () => {
+    const config = parseConfig({
+        ...baseConfig,
+        auth: {
+            mode: "apiKey",
+            apiKeys: [
+                {
+                    id: "env-key",
+                    key: "${MCP_GATEWAY_API_KEY}",
+                    tenant: "client",
+                    client: "local-dev"
+                }
+            ]
+        }
+    }, {
+        env: { MCP_GATEWAY_API_KEY: "gateway-secret" }
+    });
+
+    assert.equal(config.auth.apiKeys[0].key, "gateway-secret");
+});
+
+test("rejects gateway API key env placeholders when the env var is missing", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            auth: {
+                mode: "apiKey",
+                apiKeys: [
+                    {
+                        id: "env-key",
+                        key: "${MCP_GATEWAY_API_KEY}",
+                        tenant: "client",
+                        client: "local-dev"
+                    }
+                ]
+            }
+        }, {
+            env: {}
+        }),
+        /Missing environment variable MCP_GATEWAY_API_KEY for auth\.apiKeys\[0\]\.key/
+    );
+});
+
+test("rejects gateway API key env placeholders when the env var is blank", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            auth: {
+                mode: "apiKey",
+                apiKeys: [
+                    {
+                        id: "env-key",
+                        key: "${MCP_GATEWAY_API_KEY}",
+                        tenant: "client",
+                        client: "local-dev"
+                    }
+                ]
+            }
+        }, {
+            env: { MCP_GATEWAY_API_KEY: "   " }
+        }),
+        /Missing environment variable MCP_GATEWAY_API_KEY for auth\.apiKeys\[0\]\.key/
+    );
+});
+
 test("rejects API key entries without key or keyHash", () => {
     assert.throws(
         () => parseConfig({
@@ -151,6 +216,60 @@ test("rejects upstream API key auth when an env placeholder is missing", () => {
             env: {}
         }),
         /Missing environment variable EXAMPLE_UPSTREAM_API_KEY/
+    );
+});
+
+test("rejects upstream API key auth when an env placeholder is blank", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            upstreams: [
+                {
+                    name: "example-upstream",
+                    type: "http",
+                    url: "https://mcp-upstream.example.com/api/v2/mcp",
+                    auth: {
+                        type: "apiKey",
+                        apiKey: {
+                            header: "Authorization",
+                            value: "Api-Key ${EXAMPLE_UPSTREAM_API_KEY}"
+                        }
+                    }
+                }
+            ],
+            routing: [
+                { match: { method: "*" }, upstream: "example-upstream" }
+            ]
+        }, {
+            env: { EXAMPLE_UPSTREAM_API_KEY: "   " }
+        }),
+        /Missing environment variable EXAMPLE_UPSTREAM_API_KEY/
+    );
+});
+
+test("rejects upstream API key auth values with trailing whitespace", () => {
+    assert.throws(
+        () => parseConfig({
+            ...baseConfig,
+            upstreams: [
+                {
+                    name: "example-upstream",
+                    type: "http",
+                    url: "https://mcp-upstream.example.com/api/v2/mcp",
+                    auth: {
+                        type: "apiKey",
+                        apiKey: {
+                            header: "Authorization",
+                            value: "Custom-Prefix "
+                        }
+                    }
+                }
+            ],
+            routing: [
+                { match: { method: "*" }, upstream: "example-upstream" }
+            ]
+        }),
+        /Secret value must not start or end with whitespace for upstreams\[0\]\.auth\.apiKey\.value/
     );
 });
 

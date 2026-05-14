@@ -78,6 +78,7 @@ auth:
   apiKeys:
     - id: "local-dev-key"
       # Use keyHash in production. Plain key is convenient for local development.
+      # Plain keys can use ${ENV_VAR} placeholders resolved at startup.
       key: "dev_key_1"
       # keyHash: "sha256:REPLACE_WITH_SHA256_HEX_OF_THE_API_KEY"
       tenant: "client"
@@ -168,6 +169,16 @@ Api-Key: dev_key_1
 For production configs, prefer `keyHash` over storing plaintext keys. The
 expected format is `sha256:<hex>`. `id` is optional but recommended because it
 appears in audit logs as `apiKeyId` without exposing the secret.
+
+Plaintext gateway API keys can use `${ENV_VAR}` placeholders, for example
+`key: "${MCP_GATEWAY_API_KEY}"`. Upstream API key values support the same
+placeholder syntax. Placeholders are resolved from the process environment at
+startup; missing or empty variables make config loading fail.
+
+Keep placeholders literal in the config file that the gateway reads. If a CI
+script generates `config.yml` through a shell heredoc or `envsubst`, an unset
+variable can be expanded before startup into an invalid value with trailing
+whitespace, such as `Api-Key `.
 
 `allowedOrigins` is enforced when a request includes an `Origin` header. Some
 non-browser MCP clients do not send `Origin`, so those requests are allowed by
