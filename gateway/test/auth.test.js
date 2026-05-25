@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { authn } from "../src/middlewares/auth.js";
+import { authDiagnostic, authn } from "../src/middlewares/auth.js";
 
 const config = {
     auth: {
@@ -69,4 +69,24 @@ test("rejects invalid API keys", async () => {
         () => authn(config)({ headers: { authorization: "Bearer wrong_key" } }),
         { message: "Invalid API key", statusCode: 401 }
     );
+});
+
+test("auth diagnostics include only safe header metadata", () => {
+    assert.deepEqual(authDiagnostic({
+        authorization: "Bearer dev_key_1",
+        "x-api-key": "alternate-secret"
+    }), {
+        authorization: {
+            present: true,
+            scheme: "bearer",
+            hasToken: true,
+            tokenLength: 9
+        },
+        xApiKey: {
+            present: true
+        },
+        apiKey: {
+            present: false
+        }
+    });
 });
