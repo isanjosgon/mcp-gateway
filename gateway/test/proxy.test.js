@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { applyUpstreamAuth, copyHeadersToUpstream } from "../src/proxy.js";
+import { applyUpstreamAuth, copyHeadersToUpstream, looksLikeEventStream } from "../src/proxy.js";
 
 const config = {
     upstreamHeaders: {
@@ -119,4 +119,10 @@ test("uses upstream auth instead of client gateway credentials", () => {
         "mcp-session-id": "session-1",
         authorization: "Api-Key upstream-secret"
     });
+});
+
+test("detects event stream payloads when upstream omits content type", () => {
+    assert.equal(looksLikeEventStream("event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1}\n\n"), true);
+    assert.equal(looksLikeEventStream("data: {\"jsonrpc\":\"2.0\",\"id\":1}\n\n"), true);
+    assert.equal(looksLikeEventStream("{\"jsonrpc\":\"2.0\",\"id\":1}"), false);
 });
