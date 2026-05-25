@@ -99,12 +99,10 @@ export async function proxyUpstream(config, req, reply) {
         const contentType = res.headers.get("content-type") || "";
 
         if (contentType.includes("text/event-stream")) {
-            reply.header("content-type", "text/event-stream");
+            reply.header("content-type", "text/event-stream; charset=utf-8");
             reply.header("cache-control", "no-cache");
-            reply.header("connection", "keep-alive");
 
-            Readable.fromWeb(res.body).pipe(reply.raw);
-            return reply;
+            return reply.send(Readable.fromWeb(res.body));
         }
 
         if (res.status === 202 || res.status === 204) return reply.send();

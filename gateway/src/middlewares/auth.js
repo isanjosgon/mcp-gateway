@@ -25,6 +25,32 @@ const extractApiKey = (headers) => {
         ?? firstHeaderValue(headers["api-key"]);
 };
 
+const authorizationDiagnostic = (authorization) => {
+    const value = firstHeaderValue(authorization);
+    if (!value) return { present: false };
+
+    const separator = value.indexOf(" ");
+    const scheme = separator === -1 ? value.toLowerCase() : value.slice(0, separator).toLowerCase();
+    const token = separator === -1 ? "" : value.slice(separator + 1).trim();
+
+    return {
+        present: true,
+        scheme,
+        hasToken: Boolean(token),
+        tokenLength: token.length
+    };
+};
+
+export const authDiagnostic = (headers) => ({
+    authorization: authorizationDiagnostic(headers["authorization"]),
+    xApiKey: {
+        present: Boolean(firstHeaderValue(headers["x-api-key"]))
+    },
+    apiKey: {
+        present: Boolean(firstHeaderValue(headers["api-key"]))
+    }
+});
+
 const apiKeysEqual = (a, b) => {
     const left = Buffer.from(a);
     const right = Buffer.from(b);
@@ -58,6 +84,7 @@ export function authn(cfg) {
         if (!token) {
             const err = new Error("Missing API key");
             err.statusCode = 401;
+            req.log?.warn?.({ auth: authDiagnostic(req.headers) }, "gateway auth failed: missing api key");
             throw err;
         }
 
@@ -65,6 +92,7 @@ export function authn(cfg) {
         if (!match) {
             const err = new Error("Invalid API key");
             err.statusCode = 401;
+            req.log?.warn?.({ auth: authDiagnostic(req.headers) }, "gateway auth failed: invalid api key");
             throw err;
         }
 

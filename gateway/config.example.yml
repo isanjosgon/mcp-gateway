@@ -4,6 +4,7 @@ server:
   path: /mcp
   allowedOrigins:
     - "http://localhost:3000"
+    - "https://platform.openai.com"
     - "https://app.your-domain.com"
   # Requests without an Origin header are allowed by default for non-browser clients.
   # Set to true to reject requests that omit Origin.
@@ -38,6 +39,9 @@ policy:
       allow:
         methods:
           - "initialize"
+          - "notifications/initialized"
+          - "notifications/cancelled"
+          - "ping"
           - "tools/list"
           - "tools/call"
           - "resources/list"

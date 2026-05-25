@@ -229,6 +229,40 @@ test("MCP POST policy failures preserve JSON-RPC ids", async () => {
     });
 });
 
+test("MCP POST event-stream upstream responses preserve content type", async () => {
+    const originalFetch = globalThis.fetch;
+    test.after(() => {
+        globalThis.fetch = originalFetch;
+    });
+
+    globalThis.fetch = async () => new Response(
+        "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}\n\n",
+        {
+            status: 200,
+            headers: {
+                "content-type": "text/event-stream"
+            }
+        }
+    );
+
+    const app = await buildServer(config, { env: {} });
+    test.after(async () => app.close());
+
+    const response = await app.inject({
+        method: "POST",
+        url: "/mcp",
+        headers: mcpHeaders,
+        payload: { jsonrpc: "2.0", id: 1, method: "tools/list" }
+    });
+
+    assert.equal(response.statusCode, 200);
+    assert.match(response.headers["content-type"], /^text\/event-stream/);
+    assert.equal(
+        response.body,
+        "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"tools\":[]}}\n\n"
+    );
+});
+
 test("MCP POST batch rate-limit failures return JSON-RPC batch errors", async () => {
     const app = await buildServer({
         ...config,
