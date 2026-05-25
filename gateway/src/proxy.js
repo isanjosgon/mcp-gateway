@@ -50,6 +50,18 @@ export const applyUpstreamAuth = (headers, upstream = {}) => {
     };
 };
 
+export const looksLikeEventStream = (text) => {
+    if (typeof text !== "string") return false;
+
+    return /^(event|data|id|retry):(?:[^\r\n]*)(?:\r?\n|$)/.test(text.trimStart());
+};
+
+const sendEventStreamText = (reply, text) => {
+    reply.header("content-type", "text/event-stream; charset=utf-8");
+    reply.header("cache-control", "no-cache");
+    return reply.send(text);
+};
+
 export async function proxyUpstream(config, req, reply) {
     const calls = req.method === "POST" ? extractJsonRpcCalls(req.body) : [];
     const upstream = selectUpstream(config, req, calls);
@@ -98,6 +110,10 @@ export async function proxyUpstream(config, req, reply) {
         if (res.status === 202 || res.status === 204) return reply.send();
 
         const text = await res.text();
+        if (!contentType && looksLikeEventStream(text)) {
+            return sendEventStreamText(reply, text);
+        }
+
         try {
             return reply.send(JSON.parse(text));
         } catch {
