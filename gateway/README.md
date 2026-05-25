@@ -69,6 +69,7 @@ server:
   path: /mcp
   allowedOrigins:
     - "http://localhost:3000"
+    - "https://platform.openai.com"
   # Requests without an Origin header are allowed by default for non-browser clients.
   # Set to true to reject requests that omit Origin.
   requireOrigin: false
@@ -102,6 +103,9 @@ policy:
       allow:
         methods:
           - "initialize"
+          - "notifications/initialized"
+          - "notifications/cancelled"
+          - "ping"
           - "tools/list"
           - "tools/call"
           - "resources/list"
@@ -187,6 +191,53 @@ default and still go through gateway auth, policy, and rate limiting. Set
 does not derive origin from `Referer`, `Host`, `X-Forwarded-Host`, or remote IP
 because those fields describe different parts of the request and are not a
 reliable browser origin substitute.
+
+### OpenAI remote MCP notes
+
+OpenAI remote MCP clients list tools during connection setup. A typical
+Streamable HTTP sequence is:
+
+1. `initialize`
+2. `notifications/initialized`
+3. `tools/list`
+
+If you use deny-by-default policy, allow all three methods. `ping` and
+`notifications/cancelled` are also useful operational methods to include in a
+general remote-client allowlist.
+
+OpenAI's Responses API sends remote MCP credentials from the tool
+`authorization` field and does not store that value for later requests. Send it
+every time you create a Response that uses the MCP server. If gateway audit logs
+show `tenant:"anonymous"` with `statusCode:401`, the request did not include a
+supported gateway credential (`Authorization: Bearer ...`,
+`Authorization: Api-Key ...`, `X-API-Key`, or `Api-Key`).
+
+Some OpenAI connector UIs support OAuth or no authentication rather than custom
+API-key headers. If that UI produces `anonymous` + `401` audit logs, use OAuth
+for the gateway boundary or temporarily run `auth.mode: none` only for local
+transport testing.
+
+MCP Streamable HTTP requests should include:
+
+```http
+Accept: application/json, text/event-stream
+Content-Type: application/json
+```
+
+For SSE responses, the upstream or gateway response must include:
+
+```http
+Content-Type: text/event-stream
+```
+
+If a client reports that it cannot load tools, check audit logs in this order:
+
+| Log pattern | Meaning | Fix |
+| --- | --- | --- |
+| `anonymous` + `401` | Missing or invalid gateway credential | Verify the OpenAI auth field/header is sent on every request. |
+| authenticated + `403` on `notifications/initialized` | Policy blocks the MCP initialization notification | Add `notifications/initialized` to the allowlist. |
+| `404 Route POST:/... not found` | Client URL path does not match `server.path` | Use the exact configured path, for example `/mcp` or `/api/v2/mcp`. |
+| authenticated + `200` for `tools/list`, client still fails | Response framing/header problem | Verify `Content-Type` is `application/json` or `text/event-stream`. |
 
 ### 2) Run
 
@@ -288,16 +339,22 @@ curl -i "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "A
 If the upstream sets a session, you’ll receive a response header like:
 - `Mcp-Session-Id: ...`
 
+### notifications/initialized
+
+```bash
+curl -i "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "Authorization: Bearer dev_key_1"   -H "Mcp-Session-Id: YOUR_SESSION_ID"   -H "Accept: application/json, text/event-stream"   -H "Content-Type: application/json"   -d '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}'
+```
+
 ### tools/list
 
 ```bash
-curl -s "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "Authorization: Bearer dev_key_1"   -H "Mcp-Session-Id: YOUR_SESSION_ID"   -H "Accept: application/json"   -H "Content-Type: application/json"   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+curl -s "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "Authorization: Bearer dev_key_1"   -H "Mcp-Session-Id: YOUR_SESSION_ID"   -H "Accept: application/json, text/event-stream"   -H "Content-Type: application/json"   -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
 ```
 
 ### tools/call
 
 ```bash
-curl -s "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "Authorization: Bearer dev_key_1"   -H "Mcp-Session-Id: YOUR_SESSION_ID"   -H "Accept: application/json"   -H "Content-Type: application/json"   -d '{
+curl -s "http://localhost:8080/mcp"   -H "Origin: http://localhost:3000"   -H "Authorization: Bearer dev_key_1"   -H "Mcp-Session-Id: YOUR_SESSION_ID"   -H "Accept: application/json, text/event-stream"   -H "Content-Type: application/json"   -d '{
     "jsonrpc":"2.0",
     "id":3,
     "method":"tools/call",
