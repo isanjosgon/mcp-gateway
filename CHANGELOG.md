@@ -27,6 +27,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - CI now runs tests before config validation.
 - JSON-RPC batch requests consume rate-limit tokens per call instead of only using the first call.
 - Config validation rejects routing rules that reference unknown upstream names.
+- CLI messages, code comments and `mcp-dummy` tool descriptions are in English.
 
 ## [0.1.0] - 2026-01-11
 ### Added

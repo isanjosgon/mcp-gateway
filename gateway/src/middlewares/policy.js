@@ -10,7 +10,7 @@ export function authzPolicy(cfg) {
     return async (req) => {
         const subject = req.subject ?? { tenant: "anonymous", client: "anonymous" };
 
-        // GET/DELETE normalmente no llevan JSON-RPC body: se controla por auth + rate
+        // GET/DELETE usually carry no JSON-RPC body: controlled by auth + rate limit only
         if (req.method !== "POST") return;
 
         const calls = extractJsonRpcCalls(req.body);
