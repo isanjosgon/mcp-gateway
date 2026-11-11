@@ -1,6 +1,8 @@
 import { Readable } from "node:stream";
 import { extractJsonRpcCalls } from "./utils/jsonrpc.js";
 import { selectUpstream } from "./router.js";
+import { handleRestUpstream } from "./rest.js";
+import { applyUpstreamAuth } from "./utils/upstream-auth.js";
 
 const hopByHop = new Set([
     "connection",
@@ -41,14 +43,7 @@ export const copyHeadersToUpstream = (req, config = {}) => {
     return headers;
 };
 
-export const applyUpstreamAuth = (headers, upstream = {}) => {
-    if (upstream.auth?.type !== "apiKey") return headers;
-
-    return {
-        ...headers,
-        [upstream.auth.apiKey.header.toLowerCase()]: upstream.auth.apiKey.value
-    };
-};
+export { applyUpstreamAuth };
 
 export const looksLikeEventStream = (text) => {
     if (typeof text !== "string") return false;
@@ -65,6 +60,10 @@ const sendEventStreamText = (reply, text) => {
 export async function proxyUpstream(config, req, reply) {
     const calls = req.method === "POST" ? extractJsonRpcCalls(req.body) : [];
     const upstream = selectUpstream(config, req, calls);
+
+    if (upstream.type === "rest") {
+        return handleRestUpstream(upstream, req, reply, copyHeadersToUpstream(req, config));
+    }
 
     const url = upstream.url;
     const timeoutMs = upstream.timeoutMs ?? 30000;

@@ -16,6 +16,8 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Hashed API keys via `keyHash` and audit-safe API key identifiers via `id`.
 - Graceful shutdown for `SIGTERM` and `SIGINT`.
 - JSON-RPC error responses for gateway-level `POST /mcp` failures.
+- `type: rest` upstreams: tools defined in the config and translated by the gateway into REST requests.
+- `mcp-dummy` serves sample REST endpoints for the `rest-example` upstream.
 
 ### Security
 - Gateway authentication headers are stripped before proxying requests upstream.

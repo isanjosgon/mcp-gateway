@@ -27,6 +27,7 @@ services:
       - REDIS_URL=redis://redis:6379
       - RATE_LIMIT_KEY_PREFIX=mcp-gateway:compose
       - MCP_LOCAL_API_KEY=local-dev-key
+      - REST_BASE_URL=http://mcp-dummy:9000
     depends_on:
       - redis
       - mcp-dummy
