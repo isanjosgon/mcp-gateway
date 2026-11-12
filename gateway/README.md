@@ -30,6 +30,7 @@ Running MCP servers in production usually needs more than “it works”:
 - **Rate limiting** per tenant/client (with per-method overrides, in-memory or Redis-backed)
 - Optional per-upstream API key authentication
 - **REST upstreams** (`type: rest`): expose REST endpoints as MCP tools declared in the config
+- `tools/list` merges the tools of all upstreams when there is more than one
 - **Audit logs** (structured, consistent logging)
 - **SSE passthrough** (`text/event-stream`) when upstream returns it
 - HTTP health endpoints (`GET /healthz` and `GET /health`)
@@ -414,6 +415,32 @@ routing:
     upstream: "mcp-reports"
 ```
 
+### Several upstreams
+
+With more than one upstream, a single (non-batch) `tools/list` request is sent
+to every upstream and the gateway answers with the merged list as JSON
+(`{ jsonrpc, id, result: { tools } }`):
+
+- `http` upstreams receive the same request, headers (`upstreamHeaders.forward`),
+  `auth` and timeout as a proxied request; JSON and SSE responses are accepted.
+  The client `Mcp-Session-Id` is only sent to the upstream that routing selects
+  for `tools/list`. `rest` upstreams add their declared tools.
+- Tools keep the order of `upstreams`. If a name is repeated, the first one wins
+  and a warning is logged.
+- An upstream that fails (HTTP error, JSON-RPC error, timeout or invalid
+  response) is skipped and logged; the others are still returned.
+
+Every other method, including `initialize` and `tools/call`, still follows
+routing, so add a `tools/call` rule per tool (or tool pattern) towards its
+upstream. With a single upstream, `tools/list` is proxied as before.
+
+Limitations:
+
+- Only the routed upstream receives `initialize`: the other MCP servers must
+  work without a session.
+- No pagination: `nextCursor` is ignored and not returned.
+- Repeated tool names: only the first upstream's tool is listed.
+
 ---
 
 ## REST upstreams
@@ -451,6 +478,8 @@ upstreams:
   `baseUrl`, and client `mcp-*` headers are not sent to the REST service.
 - If `baseUrl` resolves to a missing or empty `${ENV_VAR}`, the gateway still
   starts and that upstream lists no tools.
+- Routing selects one upstream per request; only `tools/list` is merged across
+  upstreams (see [Several upstreams](#several-upstreams)).
 
 ---
 

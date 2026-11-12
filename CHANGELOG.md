@@ -17,6 +17,7 @@ The format is based on **Keep a Changelog**, and this project adheres to **Seman
 - Graceful shutdown for `SIGTERM` and `SIGINT`.
 - JSON-RPC error responses for gateway-level `POST /mcp` failures.
 - `type: rest` upstreams: tools defined in the config and translated by the gateway into REST requests.
+- With more than one upstream, `tools/list` merges the tools of all upstreams (config order, first wins on repeated names, failing upstreams skipped).
 - `mcp-dummy` serves sample REST endpoints for the `rest-example` upstream.
 
 ### Security
