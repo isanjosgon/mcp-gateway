@@ -29,7 +29,7 @@ program
         const opts = program.opts();
         if (!opts.config) throw new Error("Missing --config");
         await loadConfig(opts.config);
-        console.log("OK: config válido");
+        console.log("OK: valid config");
     });
 
 program
@@ -47,7 +47,7 @@ program
 
         console.log("\nRouting (first match wins):");
         if (!cfg.routing?.length) {
-            console.log("- (vacío) -> fallback cfg.upstreams[0]");
+            console.log("- (empty) -> fallback cfg.upstreams[0]");
             return;
         }
         for (const r of cfg.routing) {
@@ -67,7 +67,7 @@ program
     .action(() => console.log("ok"));
 
 program.action(async () => {
-    // comando por defecto = run
+    // default command = run
     const opts = program.opts();
     if (!opts.config) {
         program.help({ error: true });

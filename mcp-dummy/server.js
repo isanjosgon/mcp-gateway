@@ -3,11 +3,11 @@ import crypto from "node:crypto";
 
 const app = Fastify({ logger: true });
 
-// Sesiones -> { createdAt, sse: { res, timer } | null }
+// Sessions -> { createdAt, sse: { res, timer } | null }
 const sessions = new Map();
 
 function getSessionId(req) {
-  // Node/Fastify normaliza headers a lowercase
+  // Node/Fastify lowercases header names
   return req.headers["mcp-session-id"];
 }
 
@@ -34,7 +34,7 @@ function jsonrpcError(id, code, message) {
 function handleCall(call, req, reply) {
   const { id, method, params } = call ?? {};
 
-  // Notificación (sin id) -> no respondemos
+  // Notification (no id) -> no response
   if (id === undefined) return null;
 
   if (method === "initialize") {
@@ -49,7 +49,7 @@ function handleCall(call, req, reply) {
     });
   }
 
-  // Requerimos sesión para lo demás
+  // Everything else requires a session
   const sid = getSessionId(req);
   if (!sid || !sessions.has(sid)) {
     return jsonrpcError(id, -32001, "Missing or invalid Mcp-Session-Id (call initialize first)");
@@ -60,18 +60,18 @@ function handleCall(call, req, reply) {
       tools: [
         {
           name: "echo",
-          description: "Devuelve el mismo texto que le pasas.",
+          description: "Returns the same text you pass in.",
           inputSchema: {
             type: "object",
             properties: {
-              message: { type: "string", description: "Texto a devolver" }
+              message: { type: "string", description: "Text to return" }
             },
             required: ["message"]
           }
         },
         {
           name: "add",
-          description: "Suma dos números.",
+          description: "Adds two numbers.",
           inputSchema: {
             type: "object",
             properties: {
@@ -118,13 +118,13 @@ function handleCall(call, req, reply) {
 app.post("/mcp", async (req, reply) => {
   const body = req.body;
 
-  // JSON-RPC batch o single
+  // JSON-RPC batch or single
   if (Array.isArray(body)) {
     const results = body
       .map((call) => handleCall(call, req, reply))
       .filter((x) => x !== null);
 
-    // Si todo eran notificaciones, no respondemos
+    // If everything was notifications, do not respond
     if (results.length === 0) return reply.status(204).send();
 
     return reply.send(results);
@@ -135,7 +135,7 @@ app.post("/mcp", async (req, reply) => {
   return reply.send(res);
 });
 
-// SSE: “escuchar” mensajes del servidor (aquí mandamos keepalive + un evento demo)
+// SSE: "listen" for server messages (here we send keepalives + a demo event)
 app.get("/mcp", async (req, reply) => {
   const sid = getSessionId(req);
   if (!sid || !sessions.has(sid)) {
@@ -148,18 +148,18 @@ app.get("/mcp", async (req, reply) => {
     Connection: "keep-alive"
   });
 
-  // Guardamos el stream
+  // Store the stream
   const session = sessions.get(sid);
   if (session.sse?.timer) clearInterval(session.sse.timer);
 
-  // Keepalive cada 15s
+  // Keepalive every 15s
   const timer = setInterval(() => {
     reply.raw.write(`: keepalive ${Date.now()}\n\n`);
   }, 15000);
 
   session.sse = { res: reply.raw, timer };
 
-  // Evento demo (opcional)
+  // Demo event (optional)
   reply.raw.write(`event: message\n`);
   reply.raw.write(`data: ${JSON.stringify({ hello: "from mcp-dummy", at: new Date().toISOString() })}\n\n`);
 
@@ -170,7 +170,7 @@ app.get("/mcp", async (req, reply) => {
   });
 });
 
-// Cierra sesión
+// Close the session
 app.delete("/mcp", async (req, reply) => {
   const sid = getSessionId(req);
   if (!sid || !sessions.has(sid)) return reply.status(204).send();
