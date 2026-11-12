@@ -65,6 +65,49 @@ upstreams:
     #     header: "Authorization"
     #     value: "Api-Key ${MCP_LOCAL_API_KEY}"
 
+  # REST upstream: the gateway serves these tools itself and turns each
+  # tools/call into a REST request. In the repo docker-compose.yml,
+  # REST_BASE_URL=http://mcp-dummy:9000 (mcp-dummy serves GET/POST /items). If REST_BASE_URL is missing or empty the
+  # gateway still starts; this upstream then lists no tools and tools/call
+  # returns isError "upstream not configured".
+  - name: rest-example
+    type: rest
+    baseUrl: "${REST_BASE_URL}"
+    timeoutMs: 6000
+    # auth:
+    #   type: apiKey
+    #   apiKey:
+    #     header: "Authorization"
+    #     value: "Api-Key ${REST_API_KEY}"
+    tools:
+      - name: example_get_item
+        description: "Get an item by id"
+        inputSchema:
+          type: object
+          properties:
+            id: { type: string }
+            fields: { type: string }
+          required: ["id"]
+        annotations: { title: "Item", readOnlyHint: true }
+        request:
+          method: GET
+          # Placeholders resolve against { arguments, _meta } of tools/call.
+          # Unused arguments (here "fields") go as query string in GET/DELETE
+          # and as JSON body in POST/PUT/PATCH.
+          path: "/items/{arguments.id}"
+      - name: example_create_item
+        description: "Create an item"
+        inputSchema:
+          type: object
+          properties:
+            name: { type: string }
+            price: { type: number }
+          required: ["name"]
+          additionalProperties: false
+        request:
+          method: POST
+          path: "/items"
+
 upstreamHeaders:
   # Only these request headers are forwarded to upstream MCP servers.
   # Gateway credentials such as Authorization, X-API-Key, and Api-Key are never forwarded.
@@ -76,6 +119,11 @@ upstreamHeaders:
     - "last-event-id"
 
 routing:
+  # tools/list merges the tools of all upstreams; every other method
+  # (initialize, tools/call...) goes to the first match below, so each tool
+  # needs a tools/call rule towards its upstream.
+  - match: { method: "tools/call", tool: "example_*" }
+    upstream: "rest-example"
   - match: { method: "*" }
     upstream: "mcp-local"
 

@@ -29,6 +29,7 @@ Running MCP servers in production usually needs more than “it works”:
 - **Policy engine** (deny-by-default, allow/deny using glob patterns)
 - **Rate limiting** per tenant/client (with per-method overrides, in-memory or Redis-backed)
 - Optional per-upstream API key authentication
+- **REST upstreams** (`type: rest`): expose REST endpoints as MCP tools declared in the config
 - **Audit logs** (structured, consistent logging)
 - **SSE passthrough** (`text/event-stream`) when upstream returns it
 - HTTP health endpoints (`GET /healthz` and `GET /health`)
@@ -412,6 +413,44 @@ routing:
   - match: { method: "*" }
     upstream: "mcp-reports"
 ```
+
+---
+
+## REST upstreams
+
+An upstream with `type: rest` is not an MCP server: its tools are declared in
+the config and the gateway answers `initialize`, `ping`, `tools/list` and
+`tools/call` itself (JSON, no session), turning each `tools/call` into a REST
+request.
+
+```yaml
+upstreams:
+  - name: web
+    type: rest
+    baseUrl: "${REST_BASE_URL}"
+    auth:                      # optional, same shape as http upstreams
+      type: apiKey
+      apiKey:
+        header: "Authorization"
+        value: "Api-Key ${REST_API_KEY}"
+    tools:
+      - name: get_item
+        description: "Get an item by id"
+        inputSchema: { type: object, properties: { id: { type: string } } }
+        request:
+          method: GET          # GET | POST | PUT | PATCH | DELETE
+          path: "/items/{arguments.id}"   # or {_meta.context.from.id}
+```
+
+- Path placeholders resolve against `{ arguments, _meta }` of `tools/call`.
+  Arguments not used in the path go as query string for `GET`/`DELETE` and as a
+  JSON body for `POST`/`PUT`/`PATCH`.
+- A 2xx JSON response is returned as text content plus `structuredContent`;
+  non-2xx responses, timeouts and unreachable upstreams return `isError: true`.
+- Security: redirects are not followed, the resulting URL must stay within
+  `baseUrl`, and client `mcp-*` headers are not sent to the REST service.
+- If `baseUrl` resolves to a missing or empty `${ENV_VAR}`, the gateway still
+  starts and that upstream lists no tools.
 
 ---
 

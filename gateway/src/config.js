@@ -18,13 +18,79 @@ const UpstreamAuthSchema = z.discriminatedUnion("type", [
     })
 ]);
 
-const UpstreamSchema = z.object({
+const HttpUpstreamSchema = z.object({
     name: z.string(),
-    type: z.enum(["http"]).default("http"),
+    type: z.literal("http"),
     url: z.string().url(),
     timeoutMs: z.number().int().positive().optional(),
     auth: UpstreamAuthSchema.optional()
 });
+
+// {arguments.<key>} (a single level) or {_meta.<a>(.<b>)*}
+export const RestPathPlaceholder = /\{([^{}]*)\}/g;
+const ValidRestPathRef = /^(arguments\.[A-Za-z0-9_-]+|_meta(\.[A-Za-z0-9_-]+)+)$/;
+
+const RestToolSchema = z.object({
+    name: z.string().regex(/^[a-z0-9_-]+$/, "tool name must match ^[a-z0-9_-]+$"),
+    description: z.string().optional(),
+    inputSchema: z.looseObject({ type: z.literal("object") }).default({ type: "object" }),
+    annotations: z.record(z.string(), z.unknown()).optional(),
+    _meta: z.record(z.string(), z.unknown()).optional(),
+    request: z.object({
+        method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]),
+        path: z.string()
+            .startsWith("/", "request.path must start with /")
+            .superRefine((path, ctx) => {
+                for (const [match, ref] of path.matchAll(RestPathPlaceholder)) {
+                    if (ValidRestPathRef.test(ref)) continue;
+                    ctx.addIssue({
+                        code: "custom",
+                        message: `Invalid placeholder ${match} in request.path: use {arguments.<name>} or {_meta.<key>(.<key>)*}`
+                    });
+                }
+
+                // Static part only: placeholder values are validated on call
+                const staticPath = path.replace(RestPathPlaceholder, "");
+                if (staticPath.includes("?") || staticPath.includes("#")) {
+                    ctx.addIssue({ code: "custom", message: "request.path must not include query or hash" });
+                }
+                if (path.split("/").some((segment) => segment === "." || segment === "..")) {
+                    ctx.addIssue({ code: "custom", message: "request.path must not include . or .. segments" });
+                }
+            })
+    })
+});
+
+const RestUpstreamSchema = z.object({
+    name: z.string(),
+    type: z.literal("rest"),
+    // May contain ${VAR}: it is resolved (and validated as a URL) when the config is loaded
+    baseUrl: z.string(),
+    timeoutMs: z.number().int().positive().optional(),
+    auth: UpstreamAuthSchema.optional(),
+    tools: z.array(RestToolSchema).default([])
+}).superRefine((upstream, ctx) => {
+    const seen = new Set();
+
+    upstream.tools.forEach((tool, index) => {
+        if (seen.has(tool.name)) {
+            ctx.addIssue({
+                code: "custom",
+                path: ["tools", index, "name"],
+                message: `Duplicate tool name: ${tool.name}`
+            });
+        }
+        seen.add(tool.name);
+    });
+});
+
+// type is optional and defaults to "http"
+const UpstreamSchema = z.preprocess(
+    (upstream) => (upstream && typeof upstream === "object" && upstream.type === undefined
+        ? { ...upstream, type: "http" }
+        : upstream),
+    z.discriminatedUnion("type", [HttpUpstreamSchema, RestUpstreamSchema])
+);
 
 const RoutingRuleSchema = z.object({
     match: z.object({
@@ -161,6 +227,33 @@ const resolveUpstreamAuth = (upstream, index, env) => {
     };
 };
 
+// Unlike secrets, a missing or empty variable does not make loading fail:
+// the rest upstream is left unconfigured (baseUrl null) and advertises no tools.
+const resolveRestBaseUrl = (upstream, index, env) => {
+    if (upstream.type !== "rest") return upstream;
+
+    let missing = false;
+    const baseUrl = upstream.baseUrl.replace(EnvPlaceholder, (_match, name) => {
+        const replacement = env[name];
+        if (replacement === undefined || replacement.trim() === "") missing = true;
+        return replacement ?? "";
+    }).trim();
+
+    if (missing || !baseUrl) return { ...upstream, baseUrl: null };
+
+    if (!/^https?:\/\//i.test(baseUrl) || !URL.canParse(baseUrl)) {
+        throw new Error(`Invalid URL for upstreams[${index}].baseUrl`);
+    }
+
+    // Each tool path is appended to baseUrl: it cannot contain query, hash or credentials
+    const url = new URL(baseUrl);
+    if (baseUrl.includes("?") || baseUrl.includes("#") || url.username || url.password) {
+        throw new Error(`upstreams[${index}].baseUrl must not include query, hash or credentials`);
+    }
+
+    return { ...upstream, baseUrl };
+};
+
 const resolveApiKey = (apiKey, index, env) => {
     if (!apiKey.key) return apiKey;
 
@@ -178,7 +271,13 @@ const resolveConfigSecrets = (cfg, env) => ({
         ...cfg.auth,
         apiKeys: cfg.auth.apiKeys.map((apiKey, index) => resolveApiKey(apiKey, index, env))
     },
-    upstreams: cfg.upstreams.map((upstream, index) => resolveUpstreamAuth(upstream, index, env))
+    upstreams: cfg.upstreams.map((upstream, index) => {
+        const resolved = resolveRestBaseUrl(upstream, index, env);
+        // An unconfigured rest upstream calls nothing: its auth is not resolved
+        if (resolved.type === "rest" && resolved.baseUrl === null) return resolved;
+
+        return resolveUpstreamAuth(resolved, index, env);
+    })
 });
 
 export function parseConfig(config, { env = process.env } = {})
